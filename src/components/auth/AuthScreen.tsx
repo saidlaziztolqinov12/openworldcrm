@@ -38,7 +38,7 @@ export const AuthScreen: React.FC = () => {
         <div className="bg-white py-8 px-6 sm:px-9 shadow-lg shadow-slate-200/60 rounded-2xl border border-slate-200/80">
           <div className="mb-6 text-center">
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-              Sign In
+              Sign In Yahoo
             </h2>
             <p className="text-xs text-slate-500 mt-1">
               Please enter your credentials to continue
