@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import * as admin from 'firebase-admin';
-import { initializeApp, getApps } from 'firebase/app';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getMessaging } from 'firebase-admin/messaging';
+import { initializeApp as initClientApp, getApps as getClientApps } from 'firebase/app';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -12,29 +13,11 @@ const firebaseConfig = {
   appId: "1:619360434283:web:df5c43f0104efff7e1192e"
 };
 
-const appFirebase = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const db = getFirestore(appFirebase);
-
-if (!(admin as any).apps?.length) {
-  try {
-    const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
-    if (serviceAccountEnv) {
-      const serviceAccount = JSON.parse(serviceAccountEnv);
-      (admin as any).initializeApp({
-        credential: (admin as any).credential.cert(serviceAccount)
-      });
-    } else {
-      (admin as any).initializeApp({
-        projectId: 'open-world-platform'
-      });
-    }
-  } catch (e) {
-    console.warn('Firebase Admin initialization warning:', e);
-  }
-}
+const clientApp = getClientApps().length === 0 ? initClientApp(firebaseConfig) : getClientApps()[0];
+const db = getFirestore(clientApp);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Enable CORS headers
+  // CORS Headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
@@ -65,13 +48,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Missing fcmToken or recipientUserId' });
     }
 
+    // Initialize Firebase Admin once
+    if (!getApps().length) {
+      const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT;
+      if (rawKey) {
+        const serviceAccount = typeof rawKey === 'string' ? JSON.parse(rawKey) : rawKey;
+        initializeApp({
+          credential: cert(serviceAccount)
+        });
+      } else {
+        initializeApp({
+          projectId: 'open-world-platform'
+        });
+      }
+    }
+
+    // Send Real Push via FCM v1
     const message = {
       token: targetToken,
       notification: {
-        title: title || 'New Notification',
+        title: title || 'New Request Received',
         body: body || ''
       },
-      data: data || {},
+      data: data ? Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])) : {},
       android: {
         priority: 'high' as const,
         notification: {
@@ -81,17 +80,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     };
 
-    let response;
-    try {
-      response = await (admin as any).messaging().send(message);
-    } catch (err: any) {
-      console.warn('Admin messaging send failed, falling back to simulated send:', err);
-      response = { success: true, simulated: true, error: err.message };
-    }
-
-    return res.status(200).json({ success: true, response, token: targetToken });
+    const response = await getMessaging().send(message);
+    return res.status(200).json({ success: true, messageId: response, token: targetToken });
   } catch (error: any) {
-    console.error('FCM Send Error:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    console.error('FCM Dispatch Failed:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   }
 }

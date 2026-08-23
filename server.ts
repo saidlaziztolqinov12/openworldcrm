@@ -3,7 +3,8 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs, doc, updateDoc, getDoc } from "firebase/firestore";
-import * as admin from "firebase-admin";
+import { initializeApp as initAdminApp, cert, getApps as getAdminApps } from "firebase-admin/app";
+import { getMessaging } from "firebase-admin/messaging";
 
 const firebaseConfig = {
   apiKey: "AIzaSyClabMv0UKAy6FIak8RCqbneRsjkVmQrxk",
@@ -17,16 +18,16 @@ const firebaseConfig = {
 const appFirebase = initializeApp(firebaseConfig);
 const db = getFirestore(appFirebase);
 
-if (!(admin as any).apps?.length) {
+if (!getAdminApps().length) {
   try {
     const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
     if (serviceAccountEnv) {
       const serviceAccount = JSON.parse(serviceAccountEnv);
-      (admin as any).initializeApp({
-        credential: (admin as any).credential.cert(serviceAccount)
+      initAdminApp({
+        credential: cert(serviceAccount)
       });
     } else {
-      (admin as any).initializeApp({
+      initAdminApp({
         projectId: 'open-world-platform'
       });
     }
@@ -181,10 +182,10 @@ async function startServer() {
 
       let response;
       try {
-        response = await (admin as any).messaging().send(message);
+        response = await getMessaging().send(message);
       } catch (err: any) {
-        console.warn('Admin messaging send failed in server.ts, falling back:', err);
-        response = { success: true, simulated: true, error: err.message };
+        console.warn('Admin messaging send failed in server.ts:', err);
+        throw err;
       }
 
       res.json({ success: true, response, token: targetToken });
