@@ -134,6 +134,7 @@ const MainApp: React.FC = () => {
         <TopBar
           activeTabTitle={getTabTitle()}
           onOpenTeacherActivity={isTeacher && currentUser ? () => setSelectedTeacherId(currentUser.id) : undefined}
+          onNavigate={handleSidebarTabSelect}
         />
 
         {/* Main Content Area */}

@@ -28,19 +28,29 @@ type CategoryFilter = 'all' | 'transfer_requests' | 'announcements' | 'unread';
 export const InboxView: React.FC<InboxViewProps> = ({ onSelectGroup: _onSelectGroup }) => {
   const {
     notifications,
+    teachers,
     markNotificationAsRead,
+    updateNotificationStatus,
     markAllNotificationsAsRead,
     approveTransferRequest,
     rejectTransferRequest,
-    publishAnnouncement
+    publishAnnouncement,
+    sendNotification
   } = useData();
   const { currentUser, isAdmin } = useAuth();
 
   // Admin Scope Filter
   const [adminScope, setAdminScope] = useState<AdminScope>('all_activity');
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'pending' | 'read' | 'transfer_requests' | 'announcements' | 'unread'>('all');
 
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+  const [isSendRequestModalOpen, setIsSendRequestModalOpen] = useState(false);
+  const [reqRecipientId, setReqRecipientId] = useState('');
+  const [reqTitle, setReqTitle] = useState('Group Transfer Request');
+  const [reqMessage, setReqMessage] = useState('');
+  const [reqType, setReqType] = useState<'request' | 'info' | 'alert'>('request');
+  const [isSendingReq, setIsSendingReq] = useState(false);
+
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -223,6 +233,70 @@ export const InboxView: React.FC<InboxViewProps> = ({ onSelectGroup: _onSelectGr
     }
   };
 
+  const handleAcceptGeneralRequest = async (notificationId: string) => {
+    setProcessingId(notificationId);
+    try {
+      await updateNotificationStatus(notificationId, 'accepted');
+      setActionFeedback({ type: 'success', message: 'So\'rov qabul qilindi!' });
+      setTimeout(() => setActionFeedback(null), 3000);
+    } catch (e) {
+      console.error(e);
+      setActionFeedback({ type: 'error', message: 'Xatolik yuz berdi.' });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleDeclineGeneralRequest = async (notificationId: string) => {
+    setProcessingId(notificationId);
+    try {
+      await updateNotificationStatus(notificationId, 'declined');
+      setActionFeedback({ type: 'success', message: 'So\'rov rad etildi.' });
+      setTimeout(() => setActionFeedback(null), 3000);
+    } catch (e) {
+      console.error(e);
+      setActionFeedback({ type: 'error', message: 'Xatolik yuz berdi.' });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleSendTeacherRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reqRecipientId || !reqTitle.trim() || !reqMessage.trim()) return;
+
+    setIsSendingReq(true);
+    try {
+      await sendNotification({
+        recipientId: reqRecipientId,
+        recipientRole: 'teacher',
+        senderId: currentUser?.id || 'teacher-1',
+        senderName: currentUser?.name || 'Instructor',
+        senderRole: currentUser?.role || 'teacher',
+        type: reqType,
+        title: reqTitle.trim(),
+        message: reqMessage.trim(),
+        status: 'pending',
+        priority: 'important'
+      });
+      setReqMessage('');
+      setIsSendRequestModalOpen(false);
+      setActionFeedback({
+        type: 'success',
+        message: 'So\'rov muvaffaqiyatli yuborildi!'
+      });
+      setTimeout(() => setActionFeedback(null), 3000);
+    } catch (e) {
+      console.error(e);
+      setActionFeedback({
+        type: 'error',
+        message: 'So\'rov yuborishda xatolik yuz berdi.'
+      });
+    } finally {
+      setIsSendingReq(false);
+    }
+  };
+
   const handleMarkAllRead = async () => {
     try {
       await markAllNotificationsAsRead(currentUser?.id);
@@ -271,11 +345,17 @@ export const InboxView: React.FC<InboxViewProps> = ({ onSelectGroup: _onSelectGr
     <div className="space-y-6 pb-20 md:pb-12 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 overflow-x-hidden">
       {/* Top Header */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
-        <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-          Inbox
-        </h1>
+        <div>
+          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Inbox & Requests
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+            Staff requests, notifications and announcements center
+          </p>
+        </div>
 
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+
           {unreadCountInScope > 0 && (
             <button
               onClick={handleMarkAllRead}
@@ -289,7 +369,7 @@ export const InboxView: React.FC<InboxViewProps> = ({ onSelectGroup: _onSelectGr
           {isAdmin && (
             <button
               onClick={() => setIsAnnouncementModalOpen(true)}
-              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white text-xs font-bold shadow-xs transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
             >
               <Megaphone className="w-4 h-4" />
               <span>Broadcast Announcement</span>
@@ -415,6 +495,35 @@ export const InboxView: React.FC<InboxViewProps> = ({ onSelectGroup: _onSelectGr
           </button>
 
           <button
+            onClick={() => setCategoryFilter('pending')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              categoryFilter === 'pending'
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xs'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>Pending</span>
+            {pendingTransfersInScope > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[10px] font-extrabold ml-0.5">
+                {pendingTransfersInScope}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setCategoryFilter('read')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              categoryFilter === 'read'
+                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xs'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <CheckCheck className="w-3.5 h-3.5" />
+            <span>Read</span>
+          </button>
+
+          <button
             onClick={() => setCategoryFilter('transfer_requests')}
             className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               categoryFilter === 'transfer_requests'
@@ -424,11 +533,6 @@ export const InboxView: React.FC<InboxViewProps> = ({ onSelectGroup: _onSelectGr
           >
             <ArrowRightLeft className="w-3.5 h-3.5" />
             <span>Transfer Requests</span>
-            {pendingTransfersInScope > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[10px] font-extrabold ml-0.5">
-                {pendingTransfersInScope}
-              </span>
-            )}
           </button>
 
           <button
@@ -441,11 +545,6 @@ export const InboxView: React.FC<InboxViewProps> = ({ onSelectGroup: _onSelectGr
           >
             <Megaphone className="w-3.5 h-3.5" />
             <span>Announcements</span>
-            {announcementsInScope > 0 && (
-              <span className="text-[10px] font-bold text-slate-400 ml-0.5">
-                ({announcementsInScope})
-              </span>
-            )}
           </button>
 
           <button
@@ -617,6 +716,34 @@ export const InboxView: React.FC<InboxViewProps> = ({ onSelectGroup: _onSelectGr
                     </div>
                   )}
 
+                  {((notification.type || '').toLowerCase() === 'request' || (notification.type || '').toLowerCase() === 'info') && isPending && (notification.recipientId === currentUser?.id || isAdmin) && (
+                    <div className="flex items-center gap-2 sm:self-center shrink-0 pt-2 sm:pt-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeclineGeneralRequest(notification.id);
+                        }}
+                        disabled={processingId === notification.id}
+                        className="px-3.5 py-2 rounded-xl border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 bg-rose-50/50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-xs font-bold transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Decline</span>
+                      </button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAcceptGeneralRequest(notification.id);
+                        }}
+                        disabled={processingId === notification.id}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Accept</span>
+                      </button>
+                    </div>
+                  )}
+
                   {/* Resolved status indicator */}
                   {isTransferOrOffer && !isPending && (
                     <div className="sm:self-center shrink-0">
@@ -731,6 +858,124 @@ export const InboxView: React.FC<InboxViewProps> = ({ onSelectGroup: _onSelectGr
                 >
                   <Send className="w-4 h-4" />
                   <span>{isPublishing ? 'Sending...' : 'Send Announcement'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Send Teacher Request Modal */}
+      {isSendRequestModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200 dark:border-indigo-800">
+                  <Send className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    Send Request to Teacher
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Send a message or request to another instructor or admin
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsSendRequestModalOpen(false)}
+                className="w-8 h-8 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSendTeacherRequest} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                  Recipient Teacher *
+                </label>
+                <select
+                  required
+                  value={reqRecipientId}
+                  onChange={(e) => setReqRecipientId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="">Select teacher...</option>
+                  {teachers.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.subject || 'Instructor'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                  Request Type
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['request', 'info', 'alert'] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setReqType(t)}
+                      className={`py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all border cursor-pointer ${
+                        reqType === t
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      {t === 'request' ? 'Request' : t === 'info' ? 'Info' : 'Alert'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                  Subject *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={reqTitle}
+                  onChange={(e) => setReqTitle(e.target.value)}
+                  placeholder="e.g. Group Transfer Request"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                  Message *
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={reqMessage}
+                  onChange={(e) => setReqMessage(e.target.value)}
+                  placeholder="Type your message..."
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSendRequestModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-95 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSendingReq}
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>{isSendingReq ? 'Sending...' : 'Send Request'}</span>
                 </button>
               </div>
             </form>

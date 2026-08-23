@@ -61,6 +61,7 @@ interface DataContextType {
   migrateMissingStudentIds: () => Promise<number>;
   sendNotification: (notif: Omit<InternalNotification, 'id' | 'createdAt' | 'read' | 'readBy'>) => Promise<string>;
   markNotificationAsRead: (id: string, userId?: string) => Promise<void>;
+  updateNotificationStatus: (notificationId: string, status: 'accepted' | 'declined' | 'read') => Promise<void>;
   markAllNotificationsAsRead: (userId?: string) => Promise<void>;
   approveTransferRequest: (notificationId: string) => Promise<void>;
   rejectTransferRequest: (notificationId: string) => Promise<void>;
@@ -688,6 +689,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateNotificationStatus = async (
+    notificationId: string,
+    status: 'accepted' | 'declined' | 'read'
+  ): Promise<void> => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === notificationId ? { ...n, status, read: true } : n))
+    );
+    try {
+      await setDoc(doc(db, 'notifications', notificationId), { status, read: true }, { merge: true });
+    } catch (e) {
+      console.warn('Firestore update notice for updateNotificationStatus:', e);
+    }
+  };
+
   const markAllNotificationsAsRead = async (userId?: string): Promise<void> => {
     setNotifications((prev) =>
       prev.map((n) => {
@@ -1000,6 +1015,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         migrateMissingStudentIds,
         sendNotification,
         markNotificationAsRead,
+        updateNotificationStatus,
         markAllNotificationsAsRead,
         approveTransferRequest,
         rejectTransferRequest,

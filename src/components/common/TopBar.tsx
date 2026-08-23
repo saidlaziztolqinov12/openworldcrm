@@ -1,21 +1,43 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../context/AuthContext';
+import { useData } from '../../context/DataContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Sun, Moon, LogOut, ShieldCheck, User, BarChart2 } from 'lucide-react';
+import { Sun, Moon, LogOut, ShieldCheck, User, BarChart2, Bell } from 'lucide-react';
 import { LogoutConfirmModal } from './LogoutConfirmModal';
 
 interface TopBarProps {
   activeTabTitle?: string;
   onOpenTeacherActivity?: () => void;
+  onNavigate?: (tab: string) => void;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ activeTabTitle, onOpenTeacherActivity }) => {
+export const TopBar: React.FC<TopBarProps> = ({ activeTabTitle, onOpenTeacherActivity, onNavigate }) => {
   const { currentUser, isAdmin, logout } = useAuth();
+  const { notifications } = useData();
   const { isDark, toggleTheme } = useTheme();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Calculate unread or pending notifications count for current user
+  const unreadCount = useMemo(() => {
+    if (!currentUser) return 0;
+    return notifications.filter((n) => {
+      const isRecipient = n.recipientId === currentUser.id;
+      const isGlobal =
+        n.recipientId === 'GLOBAL' ||
+        n.recipientId === 'all_teachers' ||
+        n.recipientId === 'all' ||
+        n.recipientRole === 'all' ||
+        (n.recipientRole === 'teacher' && (n.recipientId === 'GLOBAL' || n.recipientId === 'all_teachers'));
+      const isPendingRequest =
+        (n.type?.toLowerCase() === 'request' || n.type?.toLowerCase() === 'transfer_request') &&
+        (n.status?.toLowerCase() === 'pending' || !n.status);
+      const isUnread = !n.read;
+      return (isRecipient || isGlobal) && (isUnread || isPendingRequest);
+    }).length;
+  }, [notifications, currentUser]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -95,6 +117,27 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTabTitle, onOpenTeacherAct
                 </motion.div>
               )}
             </AnimatePresence>
+          </motion.button>
+
+          {/* Notifications Bell Icon Button */}
+          <motion.button
+            id="topbar-notifications-btn"
+            type="button"
+            onClick={() => {
+              if (onNavigate) onNavigate('inbox');
+            }}
+            whileTap={{ scale: 0.88 }}
+            whileHover={{ scale: 1.06 }}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer relative"
+            title="Inbox & Notifications"
+            aria-label="Notifications"
+          >
+            <Bell className="w-4 h-4 stroke-[2.2]" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center shadow-xs ring-2 ring-white dark:ring-slate-900 animate-pulse">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </motion.button>
 
           {/* Interactive Circular Profile Picture */}
