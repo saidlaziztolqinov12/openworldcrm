@@ -19,7 +19,8 @@ import {
   RotateCcw,
   ShieldCheck,
   ArrowRight,
-  Trash2
+  Trash2,
+  Wallet
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -27,13 +28,15 @@ interface AdminDashboardProps {
   onNavigateTeachers: () => void;
   onNavigateAnalytics: () => void;
   onNavigateStudents?: () => void;
+  onNavigateSalaryAdvances: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onSelectGroup,
   onNavigateTeachers,
   onNavigateAnalytics,
-  onNavigateStudents
+  onNavigateStudents,
+  onNavigateSalaryAdvances
 }) => {
   const {
     groups,
@@ -42,26 +45,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     attendanceRecords,
     archiveGroup,
     deleteGroup,
-    reassignTeacher,
-    migrateMissingStudentIds
+    reassignTeacher
   } = useData();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTeacherFilter, setSelectedTeacherFilter] = useState('all');
   const [showArchived, setShowArchived] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const handleRunMigration = async () => {
-    try {
-      const count = await migrateMissingStudentIds();
-      setToastMessage(`Successfully assigned unique 5-digit IDs to ${count} students!`);
-      setTimeout(() => setToastMessage(null), 4000);
-    } catch (e) {
-      console.error(e);
-      setToastMessage('Migration failed.');
-      setTimeout(() => setToastMessage(null), 3000);
-    }
-  };
 
   // Modals
   const [isNewGroupModalOpen, setIsNewGroupModalOpen] = useState(false);
@@ -147,11 +137,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         <div className="flex flex-wrap items-center gap-2.5 relative z-10">
           <button
-            onClick={handleRunMigration}
+            onClick={onNavigateSalaryAdvances}
             className="px-3.5 py-2.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
-            title="Assign 5-digit unique IDs to any students missing them"
+            title="Manage Teacher Salary Advances"
           >
-            <span>Assign 5-Digit IDs</span>
+            <Wallet className="w-4 h-4 text-indigo-400" />
+            <span>Salary Advances</span>
           </button>
 
           <button

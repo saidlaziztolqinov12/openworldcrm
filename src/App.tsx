@@ -16,6 +16,7 @@ import { TeacherManagement } from './components/admin/TeacherManagement';
 import { TeacherProfileView } from './components/admin/TeacherProfileView';
 import { GlobalAnalytics } from './components/admin/GlobalAnalytics';
 import { AllStudentsDirectory } from './components/admin/AllStudentsDirectory';
+import { SalaryAdvancesView } from './components/admin/SalaryAdvancesView';
 import { TeacherDashboard } from './components/teacher/TeacherDashboard';
 import { TeacherAttendanceLog } from './components/teacher/TeacherAttendanceLog';
 import { TeacherStudentsDirectory } from './components/teacher/TeacherStudentsDirectory';
@@ -44,7 +45,7 @@ const MainApp: React.FC = () => {
 
   // Sync default tab when user changes role
   useEffect(() => {
-    if (isAdmin && !['admin-dashboard', 'admin-students', 'teachers', 'analytics', 'inbox'].includes(activeTab)) {
+    if (isAdmin && !['admin-dashboard', 'admin-students', 'teachers', 'salary-advances', 'analytics', 'inbox'].includes(activeTab)) {
       setActiveTab('admin-dashboard');
     } else if (isTeacher && !['teacher-dashboard', 'teacher-students', 'teacher-attendance-history', 'inbox'].includes(activeTab)) {
       setActiveTab('teacher-dashboard');
@@ -128,6 +129,8 @@ const MainApp: React.FC = () => {
         return 'My Students Roster';
       case 'teachers':
         return 'Teachers Roster';
+      case 'salary-advances':
+        return 'Salary Advances';
       case 'analytics':
         return 'Center Analytics';
       case 'teacher-attendance-history':
@@ -184,6 +187,7 @@ const MainApp: React.FC = () => {
                       onNavigateTeachers={() => setActiveTab('teachers')}
                       onNavigateAnalytics={() => setActiveTab('analytics')}
                       onNavigateStudents={() => setActiveTab('admin-students')}
+                      onNavigateSalaryAdvances={() => setActiveTab('salary-advances')}
                     />
                   )}
                   {activeTab === 'admin-students' && (
@@ -194,6 +198,9 @@ const MainApp: React.FC = () => {
                       onSelectGroup={handleSelectGroup}
                       onSelectTeacher={handleSelectTeacher}
                     />
+                  )}
+                  {activeTab === 'salary-advances' && (
+                    <SalaryAdvancesView />
                   )}
                   {activeTab === 'analytics' && (
                     <GlobalAnalytics onSelectGroup={handleSelectGroup} />

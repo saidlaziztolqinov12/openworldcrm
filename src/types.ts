@@ -163,3 +163,15 @@ export interface GroupActivityLog {
   timestamp: string; // ISO timestamp string
 }
 
+export interface SalaryAdvance {
+  id: string;
+  teacherId: string;
+  teacherName: string;
+  amount: number;
+  date: string; // YYYY-MM-DD
+  monthYear: string; // YYYY-MM
+  note?: string;
+  createdAt: string;
+}
+
+

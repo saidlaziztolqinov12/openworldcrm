@@ -11,7 +11,8 @@ import {
   ChevronLeft,
   ChevronRight,
   WifiOff,
-  Inbox
+  Inbox,
+  Wallet
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -75,6 +76,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: 'Teachers Roster',
           icon: UserCheck,
           badge: teachers.length.toString()
+        },
+        {
+          id: 'salary-advances',
+          label: 'Salary Advances',
+          icon: Wallet
         },
         {
           id: 'analytics',

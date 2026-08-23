@@ -6,7 +6,8 @@ import {
   AttendanceRecord,
   InternalNotification,
   MonthlyRosterStudent,
-  GroupActivityLog
+  GroupActivityLog,
+  SalaryAdvance
 } from '../types';
 import { db } from '../firebase.config';
 import {
@@ -27,6 +28,7 @@ import {
   INITIAL_ATTENDANCE,
   INITIAL_NOTIFICATIONS,
   INITIAL_GROUP_ACTIVITY_LOGS,
+  INITIAL_SALARY_ADVANCES,
   seedInitialFirestoreData
 } from '../lib/seedData';
 import { useAuth } from './AuthContext';
@@ -42,6 +44,7 @@ interface DataContextType {
   attendanceRecords: AttendanceRecord[];
   notifications: InternalNotification[];
   groupActivityLogs: GroupActivityLog[];
+  salaryAdvances: SalaryAdvance[];
   loading: boolean;
   isOnline: boolean;
   addGroup: (group: Omit<Group, 'id' | 'createdAt'>) => Promise<string>;
@@ -68,6 +71,9 @@ interface DataContextType {
   rejectTransferRequest: (notificationId: string) => Promise<void>;
   publishAnnouncement: (title: string, message: string, priority?: 'normal' | 'important' | 'urgent') => Promise<string>;
   logGroupActivity: (activity: Omit<GroupActivityLog, 'id' | 'timestamp'> & { timestamp?: string }) => Promise<string>;
+  addSalaryAdvance: (advance: Omit<SalaryAdvance, 'id' | 'createdAt'>) => Promise<string>;
+  updateSalaryAdvance: (id: string, advance: Partial<SalaryAdvance>) => Promise<void>;
+  deleteSalaryAdvance: (id: string) => Promise<void>;
   resetDatabaseToDefaults: () => Promise<void>;
   getGroupStudents: (groupId: string) => Student[];
   getGroupAttendanceRecords: (groupId: string) => AttendanceRecord[];
@@ -75,6 +81,7 @@ interface DataContextType {
   getMonthlyAttendanceRoster: (groupId: string, yearMonth: string) => MonthlyRosterStudent[];
   getMonthlyLessonsCount: (groupId: string, yearMonth?: string) => number;
 }
+
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
@@ -86,6 +93,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [notifications, setNotifications] = useState<InternalNotification[]>([]);
   const [groupActivityLogs, setGroupActivityLogs] = useState<GroupActivityLog[]>(INITIAL_GROUP_ACTIVITY_LOGS);
+  const [salaryAdvances, setSalaryAdvances] = useState<SalaryAdvance[]>(INITIAL_SALARY_ADVANCES);
   const [loading, setLoading] = useState<boolean>(true);
   const [isOnline, setIsOnline] = useState<boolean>(true);
 
@@ -99,6 +107,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let unsubscribeSessions = () => {};
     let unsubscribeNotifications = () => {};
     let unsubscribeLogs = () => {};
+    let unsubscribeSalaryAdvances = () => {};
+
 
     const setupListeners = async () => {
       try {
@@ -225,6 +235,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.warn('Group logs listener notice:', err);
           }
         );
+
+        // 7. Live Sync: salary_advances collection
+        unsubscribeSalaryAdvances = onSnapshot(
+          query(collection(db, 'salary_advances')),
+          (snapshot) => {
+            const items: SalaryAdvance[] = [];
+            snapshot.forEach((d) => {
+              items.push({ id: d.id, ...(d.data() as Omit<SalaryAdvance, 'id'>) });
+            });
+            items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            setSalaryAdvances(items);
+          },
+          (err) => {
+            console.warn('Salary advances listener notice:', err);
+          }
+        );
       } catch (e) {
         console.warn('Firestore connection notice:', e);
         setLoading(false);
@@ -242,10 +268,46 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubscribeSessions();
       unsubscribeNotifications();
       unsubscribeLogs();
+      unsubscribeSalaryAdvances();
     };
   }, []);
 
   const teachers = users.filter((u) => u.role === 'teacher');
+
+  const addSalaryAdvance = async (advanceData: Omit<SalaryAdvance, 'id' | 'createdAt'>): Promise<string> => {
+    const id = `advance-${Date.now()}`;
+    const newAdvance: SalaryAdvance = {
+      ...advanceData,
+      id,
+      createdAt: new Date().toISOString()
+    };
+    setSalaryAdvances((prev) => [newAdvance, ...prev]);
+    try {
+      await setDoc(doc(db, 'salary_advances', id), newAdvance);
+    } catch (e) {
+      console.warn('Firestore write notice for addSalaryAdvance:', e);
+    }
+    return id;
+  };
+
+  const updateSalaryAdvance = async (id: string, advanceData: Partial<SalaryAdvance>): Promise<void> => {
+    setSalaryAdvances((prev) => prev.map((a) => (a.id === id ? { ...a, ...advanceData } : a)));
+    try {
+      await updateDoc(doc(db, 'salary_advances', id), advanceData);
+    } catch (e) {
+      console.warn('Firestore update notice for updateSalaryAdvance:', e);
+    }
+  };
+
+  const deleteSalaryAdvance = async (id: string): Promise<void> => {
+    setSalaryAdvances((prev) => prev.filter((a) => a.id !== id));
+    try {
+      await deleteDoc(doc(db, 'salary_advances', id));
+    } catch (e) {
+      console.warn('Firestore delete notice for deleteSalaryAdvance:', e);
+    }
+  };
+
 
   const logGroupActivity = async (
     activity: Omit<GroupActivityLog, 'id' | 'timestamp'> & { timestamp?: string }
@@ -1010,6 +1072,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         attendanceRecords,
         notifications,
         groupActivityLogs,
+        salaryAdvances,
         loading,
         isOnline,
         addGroup,
@@ -1036,6 +1099,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         rejectTransferRequest,
         publishAnnouncement,
         logGroupActivity,
+        addSalaryAdvance,
+        updateSalaryAdvance,
+        deleteSalaryAdvance,
         resetDatabaseToDefaults,
         getGroupStudents,
         getGroupAttendanceRecords,

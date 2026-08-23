@@ -1,5 +1,49 @@
-import { User, Group, Student, AttendanceRecord, InternalNotification, GroupActivityLog } from '../types';
+import { User, Group, Student, AttendanceRecord, InternalNotification, GroupActivityLog, SalaryAdvance } from '../types';
 import { Firestore, collection, getDocs, doc, setDoc, writeBatch } from 'firebase/firestore';
+
+export const INITIAL_SALARY_ADVANCES: SalaryAdvance[] = [
+  {
+    id: 'advance-1',
+    teacherId: 'teacher-1',
+    teacherName: 'Alex Rivera',
+    amount: 1500000,
+    date: '2026-08-10',
+    monthYear: '2026-08',
+    note: 'Medical emergency',
+    createdAt: '2026-08-10T10:00:00.000Z'
+  },
+  {
+    id: 'advance-2',
+    teacherId: 'teacher-1',
+    teacherName: 'Alex Rivera',
+    amount: 1000000,
+    date: '2026-08-18',
+    monthYear: '2026-08',
+    note: 'Family travel expenses',
+    createdAt: '2026-08-18T14:30:00.000Z'
+  },
+  {
+    id: 'advance-3',
+    teacherId: 'teacher-2',
+    teacherName: 'Elena Rostova',
+    amount: 2000000,
+    date: '2026-08-12',
+    monthYear: '2026-08',
+    note: 'Apartment rent advance',
+    createdAt: '2026-08-12T09:15:00.000Z'
+  },
+  {
+    id: 'advance-4',
+    teacherId: 'teacher-3',
+    teacherName: 'Jasurbek Karimov',
+    amount: 3700000,
+    date: '2026-08-05',
+    monthYear: '2026-08',
+    note: 'Equipment purchase',
+    createdAt: '2026-08-05T11:20:00.000Z'
+  }
+];
+
 
 export const INITIAL_GROUP_ACTIVITY_LOGS: GroupActivityLog[] = [
   // Group 1: IELTS Mastery 7.5+
@@ -709,6 +753,12 @@ export async function seedInitialFirestoreData(db: Firestore, force = false): Pr
     INITIAL_GROUP_ACTIVITY_LOGS.forEach((log) => {
       const logRef = doc(db, 'group_logs', log.id);
       batch.set(logRef, log);
+    });
+
+    // 7. Salary Advances
+    INITIAL_SALARY_ADVANCES.forEach((adv) => {
+      const advRef = doc(db, 'salary_advances', adv.id);
+      batch.set(advRef, adv);
     });
 
     await batch.commit();
