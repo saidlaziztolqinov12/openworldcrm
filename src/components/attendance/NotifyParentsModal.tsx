@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Group, Student, AttendanceStatusMap, AttendanceMarksMap, AttendanceCommentsMap } from '../../types';
-import { createSmsUri } from '../../lib/sms';
+import { createSmsUri, formatAttendanceNotification } from '../../lib/sms';
 import {
   X,
   MessageSquare,
@@ -50,28 +50,12 @@ export const NotifyParentsModal: React.FC<NotifyParentsModalProps> = ({
   });
 
   const generateMessage = (student: Student): string => {
-    const formattedDate = new Date(date).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric'
-    });
-
     const status = statusMap[student.id] || 'present';
-    const statusText = status === 'present' ? 'Present' : 'Absent';
-    const rawMark = marksMap[student.id];
-    const markText = (rawMark !== undefined && rawMark !== null && rawMark !== '') ? String(rawMark) : 'N/A';
-    const rawComment = commentsMap[student.id];
-    const commentText = (rawComment && rawComment.trim())
-      ? rawComment.trim()
-      : (status === 'absent' ? 'Absent' : 'Good participation');
+    const score = marksMap[student.id];
+    const note = commentsMap[student.id];
+    const studentName = `${student.firstName} ${student.surname}`;
 
-    return `Open World Lesson Update:
-• Student: ${student.firstName} ${student.surname}
-• Date: ${formattedDate} (${group.name})
-• Attendance: ${statusText}
-• Mark: ${markText}
-• Comment: ${commentText}
-${topicCovered ? `• Topic: ${topicCovered}\n` : ''}Instructor: ${group.teacherName}`;
+    return formatAttendanceNotification(studentName, date, status, score, note);
   };
 
   const handleCopy = (studentId: string, text: string) => {

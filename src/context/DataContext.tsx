@@ -31,6 +31,7 @@ import {
 import { useAuth } from './AuthContext';
 import { generateUniqueStudentId } from '../utils/studentId';
 import { sendTelegramMessage } from '../services/telegram';
+import { formatAttendanceNotification } from '../lib/sms';
 
 interface DataContextType {
   users: User[];
@@ -579,10 +580,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const student = students.find((s) => s.id === studentId);
         if (student && (student.telegramChatId || student.parentTelegramId)) {
           const chatId = student.telegramChatId || student.parentTelegramId;
-          const statusText = status === 'present' ? '✅ Present' : status === 'late' ? '⚠️ Kechikib keldi (Late)' : '❌ Absent';
+          const score = sanitizedPayload.marksMap?.[studentId];
           const comment = commentsMap[studentId] || '';
           const studentName = `${student.firstName} ${student.surname}`;
-          const text = `🔔 <b>Open World Academy — Attendance Update</b>\n\n<b>Student:</b> ${studentName}\n<b>Date:</b> ${dateStr}\n<b>Status:</b> ${statusText}\n${comment ? `<b>Note:</b> ${comment}` : ''}`;
+          const text = formatAttendanceNotification(studentName, dateStr, status, score, comment);
           
           sendTelegramMessage(chatId, text).catch((err) => {
             console.error('Failed to send Telegram message:', err);
@@ -935,7 +936,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (student.groupId !== groupId || !student.groupId) {
           const matchingRecordsInMonth = groupMonthRecords.filter((r) => {
             const st = r.statusMap?.[student.id];
-            return st === 'present' || st === 'absent';
+            return st === 'present' || st === 'absent' || st === 'late';
           });
 
           if (matchingRecordsInMonth.length > 0) {

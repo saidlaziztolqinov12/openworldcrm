@@ -30,3 +30,66 @@ export const createSmsUri = (phoneNumber: string, message: string = ''): string 
 
   return `sms:${cleanNumber}${separator}${encodeURIComponent(message)}`;
 };
+
+export const formatAttendanceNotification = (
+  studentName: string,
+  dateStr: string,
+  status: string,
+  score?: string | number,
+  note?: string
+): string => {
+  const uzMonths = [
+    'yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
+    'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'
+  ];
+  const uzDays = [
+    'yakshanba', 'dushanba', 'seshanba', 'chorshanba',
+    'payshanba', 'juma', 'shanba'
+  ];
+
+  let year = new Date().getFullYear();
+  let monthIdx = 0;
+  let dayNum = 1;
+
+  if (dateStr && dateStr.includes('-')) {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      year = parseInt(parts[0], 10);
+      monthIdx = parseInt(parts[1], 10) - 1;
+      dayNum = parseInt(parts[2], 10);
+    }
+  }
+
+  const d = new Date(year, monthIdx, dayNum);
+  const dayOfWeek = uzDays[d.getDay()] || 'dushanba';
+  const monthName = uzMonths[monthIdx] || 'avgust';
+  const formattedDate = `${dayNum}-${monthName} ${year}`;
+
+  const statusBadge =
+    status === 'present' ? "✅ Darsga keldi" :
+    status === 'late' ? "⚠️ Kechikib keldi" :
+    "❌ Darsga kelmadi";
+
+  const lines: string[] = [
+    "🔔 Open World — O'quvchi hisoboti",
+    "",
+    `Student: ${studentName}`,
+    `Sana: ${formattedDate} (${dayOfWeek})`,
+    `Holati: ${statusBadge}`
+  ];
+
+  if (score !== undefined && score !== null && String(score).trim() !== '') {
+    lines.push(`Ball: ${score}`);
+  }
+
+  if (note && note.trim() !== '') {
+    lines.push(`Izoh: ${note.trim()}`);
+  }
+
+  lines.push("");
+  lines.push("Open World kanaliga obuna bo'ling: @Open_World_LC");
+  lines.push("Open World guruhiga obuna bo'ling: @openworld_m");
+
+  return lines.join('\n');
+};
+

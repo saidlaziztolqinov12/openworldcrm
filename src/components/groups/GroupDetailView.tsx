@@ -127,10 +127,10 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
     );
 
     if (existing) {
-      // Normalize statusMap so only 'present' or 'absent' exist
+      // Normalize statusMap so valid attendance statuses exist
       const normalizedStatus: AttendanceStatusMap = {};
       Object.entries(existing.statusMap || {}).forEach(([k, v]) => {
-        if (v === 'absent' || v === 'present') {
+        if (v === 'absent' || v === 'present' || v === 'late') {
           normalizedStatus[k] = v;
         }
       });
