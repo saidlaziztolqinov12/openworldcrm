@@ -1,0 +1,6 @@
+{
+  "name": "Open World - Learning Center Platform",
+  "description": "A responsive, mobile-first Learning Center Management Platform featuring Admin & Teacher role-based access, attendance tracking, lesson targets, student management, and parent notifications.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
