@@ -661,25 +661,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await setDoc(doc(db, 'notifications', id), newNotif);
 
-      // Fetch recipient's fcmToken and send push notification
+      // Trigger push notification via /api/send-push
       if (notifData.recipientId) {
-        const userDocRef = doc(db, 'users', notifData.recipientId);
-        const userSnap = await getDoc(userDocRef);
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          const fcmToken = userData?.fcmToken;
-          if (fcmToken) {
-            await fetch('/api/send-push', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                token: fcmToken,
-                title: notifData.title || "Yangi so'rov!",
-                body: notifData.message
-              })
-            });
-          }
-        }
+        await fetch('/api/send-push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recipientUserId: notifData.recipientId,
+            title: "🔔 New Request Received",
+            body: `${notifData.senderName || 'Instructor'} sent you a request: ${notifData.title}`,
+            data: { route: '/inbox' }
+          })
+        });
       }
     } catch (e) {
       console.warn('Firestore write or push dispatch notice for sendNotification:', e);

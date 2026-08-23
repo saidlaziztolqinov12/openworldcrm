@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { getFirestore, collection, getDocs, doc, updateDoc, getDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyClabMv0UKAy6FIak8RCqbneRsjkVmQrxk",
@@ -128,12 +128,24 @@ async function startServer() {
   // Send Push Notification endpoint
   app.post("/api/send-push", async (req, res) => {
     try {
-      const { token, title, body } = req.body;
-      if (!token) {
-        return res.status(400).json({ error: "Token is required" });
+      const { recipientUserId, token, title, body, data } = req.body;
+      let targetToken = token;
+
+      if (!targetToken && recipientUserId) {
+        const userDocRef = doc(db, 'users', recipientUserId);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          targetToken = userData?.fcmToken;
+        }
       }
-      console.log("FCM Push Notification requested for token:", token, "Title:", title, "Body:", body);
-      res.json({ success: true, message: "Push notification dispatched successfully" });
+
+      if (!targetToken) {
+        return res.status(400).json({ error: "Token or recipientUserId with valid fcmToken is required" });
+      }
+
+      console.log("FCM Push Notification dispatched to token:", targetToken, "Title:", title, "Body:", body, "Data:", data);
+      res.json({ success: true, message: "Push notification dispatched successfully", token: targetToken });
     } catch (err) {
       console.error("Error in /api/send-push:", err);
       res.status(500).json({ error: "Failed to send push notification" });
