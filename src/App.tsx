@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider, useData } from './context/DataContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -51,6 +53,101 @@ const MainApp: React.FC = () => {
       setActiveTab('teacher-dashboard');
     }
   }, [isAdmin, isTeacher, activeTab]);
+
+  // Keep latest navigation state in ref for safe, event-driven back handling
+  const navStateRef = useRef({
+    isAddStudentModalOpen,
+    selectedGroupId,
+    selectedTeacherId,
+    activeTab,
+    isAdmin,
+    isTeacher
+  });
+
+  useEffect(() => {
+    navStateRef.current = {
+      isAddStudentModalOpen,
+      selectedGroupId,
+      selectedTeacherId,
+      activeTab,
+      isAdmin,
+      isTeacher
+    };
+  }, [isAddStudentModalOpen, selectedGroupId, selectedTeacherId, activeTab, isAdmin, isTeacher]);
+
+  // Android Hardware / Gesture Back Button navigation handler via Capacitor
+  useEffect(() => {
+    // Safe Web Fallback: ensure listener only binds on native mobile (Android/iOS)
+    if (!Capacitor.isNativePlatform()) return;
+
+    let backListenerHandle: { remove: () => Promise<void> } | null = null;
+    let isSubscribed = true;
+
+    const setupBackListener = async () => {
+      try {
+        const handle = await CapacitorApp.addListener('backButton', () => {
+          const {
+            isAddStudentModalOpen: isModalOpen,
+            selectedGroupId: groupId,
+            selectedTeacherId: teacherId,
+            activeTab: currentTab,
+            isAdmin: userIsAdmin
+          } = navStateRef.current;
+
+          // 1. Dispatch custom event allowing any active subcomponent modal to intercept first
+          const customBackEvent = new CustomEvent('hardware-back', { cancelable: true });
+          const defaultPrevented = !window.dispatchEvent(customBackEvent);
+          if (defaultPrevented) return;
+
+          // 2. If the global student modal is open, close it first
+          if (isModalOpen) {
+            setIsAddStudentModalOpen(false);
+            return;
+          }
+
+          // 3. If in group drilldown or teacher profile, go back to the previous list
+          if (groupId) {
+            setSelectedGroupId(null);
+            return;
+          }
+
+          if (teacherId) {
+            setSelectedTeacherId(null);
+            return;
+          }
+
+          // 4. If on the root/home dashboard, minimize/exit the app
+          const isHomeDashboard = userIsAdmin
+            ? currentTab === 'admin-dashboard'
+            : currentTab === 'teacher-dashboard';
+
+          if (isHomeDashboard) {
+            CapacitorApp.exitApp();
+          } else {
+            // Otherwise, navigate back to the main dashboard overview
+            setActiveTab(userIsAdmin ? 'admin-dashboard' : 'teacher-dashboard');
+          }
+        });
+
+        if (!isSubscribed) {
+          handle.remove();
+        } else {
+          backListenerHandle = handle;
+        }
+      } catch (err) {
+        console.warn('Capacitor backButton listener registration error:', err);
+      }
+    };
+
+    setupBackListener();
+
+    return () => {
+      isSubscribed = false;
+      if (backListenerHandle) {
+        backListenerHandle.remove();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const handleNavigateInbox = () => {
