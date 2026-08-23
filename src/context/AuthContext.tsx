@@ -78,38 +78,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let regListener: any;
     let actionListener: any;
 
-    const setupPushNotifications = async () => {
-      try {
-        if (Capacitor.isNativePlatform()) {
-          const { PushNotifications } = await import('@capacitor/push-notifications');
-          const permStatus = await PushNotifications.requestPermissions();
-          if (permStatus.receive === 'granted') {
-            await PushNotifications.register();
-            regListener = await PushNotifications.addListener('registration', async (token) => {
-              if (currentUser && currentUser.id) {
-                try {
-                  await updateDoc(doc(db, 'users', currentUser.id), {
-                    fcmToken: token.value,
-                    fcmTokenUpdatedAt: new Date()
-                  });
-                } catch (e) {
-                  console.warn('Failed to save FCM token to Firestore:', e);
-                }
-              }
-            });
-            actionListener = await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-              window.location.href = '/inbox';
-            });
+    if (Capacitor.isNativePlatform()) {
+      import('@capacitor/push-notifications').then(({ PushNotifications }) => {
+        PushNotifications.requestPermissions().then((result) => {
+          if (result.receive === 'granted') {
+            PushNotifications.register();
           }
-        } else {
-          console.log('Push notifications registration skipped: running on web browser.');
-        }
-      } catch (err) {
-        console.warn('Push notifications setup error:', err);
-      }
-    };
+        });
+        
+        PushNotifications.addListener('registration', async (token) => {
+          if (token && token.value && currentUser && currentUser.id) {
+            try {
+              await updateDoc(doc(db, 'users', currentUser.id), {
+                fcmToken: token.value,
+                fcmTokenUpdatedAt: new Date()
+              });
+            } catch (e) {
+              console.warn('Failed to save FCM token to Firestore:', e);
+            }
+          }
+        }).then((listener) => {
+          regListener = listener;
+        });
 
-    setupPushNotifications();
+        PushNotifications.addListener('pushNotificationActionPerformed', () => {
+          window.location.href = '/inbox';
+        }).then((listener) => {
+          actionListener = listener;
+        });
+      }).catch((err) => {
+        console.warn('Failed to load PushNotifications plugin:', err);
+      });
+    } else {
+      console.log('Push notifications registration skipped: running on web browser.');
+    }
 
     return () => {
       if (regListener && typeof regListener.remove === 'function') {
