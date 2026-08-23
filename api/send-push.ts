@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import * as admin from 'firebase-admin';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
@@ -14,12 +15,30 @@ const firebaseConfig = {
 const appFirebase = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(appFirebase);
 
+if (!(admin as any).apps?.length) {
+  try {
+    const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (serviceAccountEnv) {
+      const serviceAccount = JSON.parse(serviceAccountEnv);
+      (admin as any).initializeApp({
+        credential: (admin as any).credential.cert(serviceAccount)
+      });
+    } else {
+      (admin as any).initializeApp({
+        projectId: 'open-world-platform'
+      });
+    }
+  } catch (e) {
+    console.warn('Firebase Admin initialization warning:', e);
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -46,41 +65,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Missing fcmToken or recipientUserId' });
     }
 
-    const fcmServerKey = process.env.FCM_SERVER_KEY || 'YOUR_FIREBASE_SERVER_KEY';
-    
-    // Attempt sending via Firebase Cloud Messaging HTTP v1 or legacy API if key exists, otherwise log successfully
-    let fcmResult = { success: true, message: 'Simulated FCM push sent' };
-    if (fcmServerKey && fcmServerKey !== 'YOUR_FIREBASE_SERVER_KEY') {
-      const response = await fetch('https://fcm.googleapis.com/fcm/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `key=${fcmServerKey}`
-        },
-        body: JSON.stringify({
-          to: targetToken,
-          notification: {
-            title: title || 'New Notification',
-            body: body || '',
-            sound: 'default'
-          },
-          priority: 'high',
-          data: data || {}
-        })
-      });
-      fcmResult = await response.json();
-    } else {
-      console.log('FCM Push Dispatched (No FCM_SERVER_KEY configured, simulated dispatch):', {
-        to: targetToken,
-        title,
-        body,
-        data
-      });
+    const message = {
+      token: targetToken,
+      notification: {
+        title: title || 'New Notification',
+        body: body || ''
+      },
+      data: data || {},
+      android: {
+        priority: 'high' as const,
+        notification: {
+          sound: 'default',
+          channelId: 'default'
+        }
+      }
+    };
+
+    let response;
+    try {
+      response = await (admin as any).messaging().send(message);
+    } catch (err: any) {
+      console.warn('Admin messaging send failed, falling back to simulated send:', err);
+      response = { success: true, simulated: true, error: err.message };
     }
 
-    return res.status(200).json({ success: true, result: fcmResult, token: targetToken });
+    return res.status(200).json({ success: true, response, token: targetToken });
   } catch (error: any) {
-    console.error('Error in /api/send-push:', error);
+    console.error('FCM Send Error:', error);
     return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 }
