@@ -68,8 +68,21 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
   const [activeTab, setActiveTab] = useState<'register' | 'monthly' | 'roster' | 'history' | 'archive'>('register');
 
   // Attendance Register states
-  const todayStr = new Date().toISOString().substring(0, 10);
-  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  const getLocalDateString = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayDate = new Date();
+  const todayFormatted = getLocalDateString(todayDate);
+  const twoDaysAgoDate = new Date();
+  twoDaysAgoDate.setDate(todayDate.getDate() - 2);
+  const twoDaysAgoFormatted = getLocalDateString(twoDaysAgoDate);
+
+  const [selectedDate, setSelectedDate] = useState<string>(todayFormatted);
+  const [attendanceError, setAttendanceError] = useState<string | null>(null);
   const [statusMap, setStatusMap] = useState<AttendanceStatusMap>({});
   const [marksMap, setMarksMap] = useState<AttendanceMarksMap>({});
   const [commentsMap, setCommentsMap] = useState<AttendanceCommentsMap>({});
@@ -200,6 +213,11 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
 
   const handleSaveAttendance = async () => {
     if (!currentUser) return;
+    if (selectedDate < twoDaysAgoFormatted || selectedDate > todayFormatted) {
+      setAttendanceError("Attendance can only be recorded for today and the last 2 days.");
+      return;
+    }
+    setAttendanceError(null);
     setSavingAttendance(true);
 
     try {
@@ -309,15 +327,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
             </div>
           </div>
 
-          {/* Quick Notification CTA - Native SMS */}
-          <button
-            type="button"
-            onClick={() => setIsNotifyModalOpen(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition-all hover:-translate-y-0.5 active:scale-95 self-start md:self-center cursor-pointer"
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>Send SMS to Parents</span>
-          </button>
+
         </div>
 
         {/* Tab Navigation */}
@@ -423,7 +433,12 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                 <input
                   type="date"
                   value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  min={twoDaysAgoFormatted}
+                  max={todayFormatted}
+                  onChange={(e) => {
+                    setSelectedDate(e.target.value);
+                    setAttendanceError(null);
+                  }}
                   className="text-sm font-bold text-slate-900 dark:text-white bg-transparent outline-none cursor-pointer"
                 />
               </div>
@@ -619,25 +634,21 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
           {/* Action Footer: Save Attendance Register & Native SMS */}
           <div className="bg-white dark:bg-slate-900 rounded-lg border-none p-4 sm:p-5 shadow-xs transition-colors">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div>
+              <div className="flex flex-col gap-2">
                 {saveSuccess && (
                   <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/80 px-3 py-1.5 rounded-md border border-emerald-200 dark:border-emerald-800 animate-in fade-in">
                     <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    Attendance saved successfully!
+                    Attendance registered successfully & parents are notified!
+                  </span>
+                )}
+                {attendanceError && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/80 px-3 py-1.5 rounded-md border border-rose-200 dark:border-rose-800 animate-in fade-in">
+                    {attendanceError}
                   </span>
                 )}
               </div>
 
               <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                <button
-                  type="button"
-                  onClick={() => setIsNotifyModalOpen(true)}
-                  className="px-3.5 py-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center gap-1.5 cursor-pointer"
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                  <span>Send SMS to Parents</span>
-                </button>
-
                 <button
                   type="button"
                   onClick={handleSaveAttendance}
