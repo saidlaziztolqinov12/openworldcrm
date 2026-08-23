@@ -24,7 +24,7 @@ import { StudentModal } from './components/students/StudentModal';
 import { InboxView } from './components/notifications/InboxView';
 
 const MainApp: React.FC = () => {
-  const { currentUser, isAdmin, isTeacher } = useAuth();
+  const { currentUser, isAdmin, isTeacher, isLoading } = useAuth();
   const { groups, teachers } = useData();
 
   // Navigation tab state
@@ -50,6 +50,18 @@ const MainApp: React.FC = () => {
       setActiveTab('teacher-dashboard');
     }
   }, [isAdmin, isTeacher, activeTab]);
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-6 text-white">
+        <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-xl shadow-indigo-600/30 animate-pulse mb-4">
+          <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
+        </div>
+        <h2 className="text-lg font-bold tracking-tight text-white mb-1">Open World</h2>
+        <p className="text-xs text-slate-400 font-medium">Ilova yuklanmoqda...</p>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return <AuthScreen />;

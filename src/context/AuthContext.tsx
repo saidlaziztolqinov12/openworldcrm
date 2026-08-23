@@ -1,12 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { INITIAL_USERS } from '../lib/seedData';
+import { setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 interface AuthContextType {
   currentUser: User | null;
   role: UserRole | null;
   isAdmin: boolean;
   isTeacher: boolean;
+  isLoading: boolean;
   loginAs: (user: User) => void;
   loginWithCredentials: (
     email: string,
@@ -21,14 +24,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const LOCAL_STORAGE_USER_KEY = 'openworld_active_user';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Always start with strict login (null user) unless session is active
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
-      // Clean up legacy keys if any
       sessionStorage.removeItem('edupulse_active_user');
       localStorage.removeItem('edupulse_active_user');
+      sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
 
-      const saved = sessionStorage.getItem(LOCAL_STORAGE_USER_KEY);
+      const saved = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && (parsed.role === 'admin' || parsed.id === 'admin-1' || (parsed.name && parsed.name.includes('Sarah')))) {
@@ -42,15 +45,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // ignore
     }
-    // Return null so user is always presented with the strict Login Screen
     return null;
   });
 
   useEffect(() => {
+    // Set Firebase auth persistence to local storage
+    setPersistence(auth, browserLocalPersistence).catch((err) => {
+      console.warn('Firebase persistence warning:', err);
+    });
+
+    // Simulate short check for auth state restoration
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     if (currentUser) {
-      sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(currentUser));
+      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(currentUser));
     } else {
-      sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+      localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
     }
   }, [currentUser]);
 
@@ -63,6 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sanitizedUser.title = 'Director';
     }
     setCurrentUser(sanitizedUser);
+    localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(sanitizedUser));
   };
 
   const loginWithCredentials = (
@@ -77,7 +94,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: 'Please enter both email and password.' };
     }
 
-    // 1. Check hardcoded Default Admin login (admin@center.com / admin / admin123)
     if (
       (trimmedEmail === 'admin@center.com' || trimmedEmail === 'admin' || trimmedEmail === 'director' || trimmedEmail === 'admin@openworld.edu' || trimmedEmail === 'admin@edupulse.edu') &&
       trimmedPassword === 'admin123'
@@ -92,10 +108,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: 'admin'
       };
       setCurrentUser(adminUser);
+      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(adminUser));
       return { success: true };
     }
 
-    // 2. Check registered users (from Firestore / DataContext or INITIAL_USERS)
     const combinedUsers = [...registeredUsers, ...INITIAL_USERS];
     const matchedUser = combinedUsers.find(
       (u) =>
@@ -111,7 +127,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // Verify password if specified on the user record, or default seed passwords
     const validPassword = matchedUser.password || 'teacher123';
     if (trimmedPassword !== validPassword) {
       return {
@@ -129,6 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setCurrentUser(sanitizedUser);
+    localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(sanitizedUser));
     return { success: true };
   };
 
@@ -151,6 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role,
         isAdmin,
         isTeacher,
+        isLoading,
         loginAs,
         loginWithCredentials,
         logout,
