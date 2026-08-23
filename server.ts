@@ -125,6 +125,21 @@ async function startServer() {
   app.post("/api/telegram-webhook", handleTelegramWebhookLogic);
   app.post("/api/telegram-webhook.js", handleTelegramWebhookLogic);
 
+  // Send Push Notification endpoint
+  app.post("/api/send-push", async (req, res) => {
+    try {
+      const { token, title, body } = req.body;
+      if (!token) {
+        return res.status(400).json({ error: "Token is required" });
+      }
+      console.log("FCM Push Notification requested for token:", token, "Title:", title, "Body:", body);
+      res.json({ success: true, message: "Push notification dispatched successfully" });
+    } catch (err) {
+      console.error("Error in /api/send-push:", err);
+      res.status(500).json({ error: "Failed to send push notification" });
+    }
+  });
+
   // Health check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });

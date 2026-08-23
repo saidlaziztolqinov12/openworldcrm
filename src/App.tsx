@@ -51,6 +51,16 @@ const MainApp: React.FC = () => {
     }
   }, [isAdmin, isTeacher, activeTab]);
 
+  useEffect(() => {
+    const handleNavigateInbox = () => {
+      setActiveTab('inbox');
+    };
+    window.addEventListener('navigate-to-inbox', handleNavigateInbox);
+    return () => {
+      window.removeEventListener('navigate-to-inbox', handleNavigateInbox);
+    };
+  }, []);
+
   if (isLoading) {
     return (
       <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-6 text-white">

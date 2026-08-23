@@ -2,7 +2,10 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { INITIAL_USERS } from '../lib/seedData';
 import { setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { Capacitor } from '@capacitor/core';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -68,6 +71,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
     }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const setupPushNotifications = async () => {
+      try {
+        if (Capacitor.isNativePlatform()) {
+          const permResult = await PushNotifications.requestPermissions();
+          if (permResult.receive === 'granted') {
+            await PushNotifications.register();
+          }
+        }
+      } catch (err) {
+        console.warn('Push notifications permission/register error:', err);
+      }
+    };
+
+    setupPushNotifications();
+
+    let regListener: any;
+    let actionListener: any;
+
+    try {
+      if (Capacitor.isNativePlatform() || PushNotifications) {
+        regListener = PushNotifications.addListener('registration', async (token) => {
+          if (token && token.value && currentUser) {
+            try {
+              await setDoc(
+                doc(db, 'users', currentUser.id),
+                { fcmToken: token.value },
+                { merge: true }
+              );
+            } catch (e) {
+              console.warn('Failed to save FCM token to Firestore:', e);
+            }
+          }
+        });
+
+        actionListener = PushNotifications.addListener('pushNotificationActionPerformed', () => {
+          window.dispatchEvent(new CustomEvent('navigate-to-inbox'));
+        });
+      }
+    } catch (e) {
+      console.warn('Push notifications listener setup warning:', e);
+    }
+
+    return () => {
+      if (regListener) regListener.remove();
+      if (actionListener) actionListener.remove();
+    };
   }, [currentUser]);
 
   const loginAs = (user: User) => {

@@ -17,7 +17,8 @@ import {
   updateDoc,
   deleteDoc,
   query,
-  getDocs
+  getDocs,
+  getDoc
 } from 'firebase/firestore';
 import {
   INITIAL_USERS,
@@ -659,8 +660,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setNotifications((prev) => [newNotif, ...prev]);
     try {
       await setDoc(doc(db, 'notifications', id), newNotif);
+
+      // Fetch recipient's fcmToken and send push notification
+      if (notifData.recipientId) {
+        const userDocRef = doc(db, 'users', notifData.recipientId);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          const fcmToken = userData?.fcmToken;
+          if (fcmToken) {
+            await fetch('/api/send-push', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                token: fcmToken,
+                title: notifData.title || "Yangi so'rov!",
+                body: notifData.message
+              })
+            });
+          }
+        }
+      }
     } catch (e) {
-      console.warn('Firestore write notice for sendNotification:', e);
+      console.warn('Firestore write or push dispatch notice for sendNotification:', e);
     }
     return id;
   };
