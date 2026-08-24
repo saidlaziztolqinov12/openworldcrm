@@ -167,11 +167,18 @@ export interface SalaryAdvance {
   id: string;
   teacherId: string;
   teacherName: string;
+  teacherEmail?: string;
+  teacherPhone?: string;
+  teacherTitle?: string;
+  teacherSubject?: string;
+  teacherAvatarColor?: string;
   amount: number;
   date: string; // YYYY-MM-DD
   monthYear: string; // YYYY-MM
   note?: string;
   createdAt: string;
+  createdById?: string;
+  createdByName?: string;
 }
 
 
