@@ -52,7 +52,7 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
       setPhone(teacherToEdit.phone || '+998 ');
       setTitle(teacherToEdit.title || 'Mr.');
       setSubject(teacherToEdit.subject || '');
-      setPassword(teacherToEdit.password || '');
+      setPassword('');
       setAvatarColor(teacherToEdit.avatarColor || 'bg-indigo-600');
     } else {
       setFirstName('');
@@ -88,8 +88,8 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
       setError('Please enter a Job Title or Subject Specialty (e.g. English).');
       return;
     }
-    if (!teacherToEdit && !password.trim()) {
-      setError('Please set a password for the teacher account.');
+    if (!teacherToEdit && password.trim().length < 8) {
+      setError('Set an initial password of at least 8 characters for this account.');
       return;
     }
 
@@ -101,32 +101,32 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
           name: fullName,
           firstName: firstName.trim(),
           surname: surname.trim(),
-          email: email.trim().toLowerCase(),
           phone: cleanPhone,
           title: title.trim(),
           subject: subject.trim(),
-          password: password.trim() ? password.trim() : teacherToEdit.password,
           avatarColor
         });
       } else {
-        await addTeacher({
-          name: fullName,
-          firstName: firstName.trim(),
-          surname: surname.trim(),
-          email: email.trim().toLowerCase(),
-          role: 'teacher',
-          phone: cleanPhone,
-          title: title.trim(),
-          subject: subject.trim(),
-          password: password.trim(),
-          avatarColor
-        });
+        await addTeacher(
+          {
+            name: fullName,
+            firstName: firstName.trim(),
+            surname: surname.trim(),
+            email: email.trim().toLowerCase(),
+            role: 'teacher',
+            phone: cleanPhone,
+            title: title.trim(),
+            subject: subject.trim(),
+            avatarColor
+          },
+          password.trim()
+        );
       }
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
       console.error(err);
-      setError('Failed to save teacher information.');
+      setError(err instanceof Error ? err.message : 'Failed to save teacher information.');
     } finally {
       setLoading(false);
     }
@@ -291,7 +291,7 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
                 required={!teacherToEdit}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="e.g. teacher123"
+                placeholder="Choose a strong password"
                 className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-800 dark:text-white placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors"
               />
               <button

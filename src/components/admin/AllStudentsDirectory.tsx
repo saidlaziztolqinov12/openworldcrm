@@ -401,11 +401,16 @@ export const AllStudentsDirectory: React.FC<AllStudentsDirectoryProps> = ({ onSe
                 disabled={!assignGroupId}
                 onClick={async () => {
                   if (!assignGroupId || !studentToAssign) return;
-                  await transferStudent(studentToAssign.id, assignGroupId);
-                  setFeedbackToast(`Successfully assigned ${studentToAssign.firstName} ${studentToAssign.surname} to group!`);
+                  try {
+                    await transferStudent(studentToAssign.id, assignGroupId);
+                    setFeedbackToast(`Successfully assigned ${studentToAssign.firstName} ${studentToAssign.surname} to group!`);
+                    setIsAssignModalOpen(false);
+                    setStudentToAssign(null);
+                  } catch (err) {
+                    console.error('Failed to assign student to group:', err);
+                    setFeedbackToast('Could not save the assignment. Check your connection and try again.');
+                  }
                   setTimeout(() => setFeedbackToast(null), 4000);
-                  setIsAssignModalOpen(false);
-                  setStudentToAssign(null);
                 }}
                 className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition-all cursor-pointer disabled:opacity-50"
               >

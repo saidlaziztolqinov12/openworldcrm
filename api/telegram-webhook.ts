@@ -36,6 +36,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
+  // Telegram echoes the secret configured via setWebhook(secret_token: ...).
+  // Without this check the endpoint is an open oracle over student records.
+  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (!expectedSecret) {
+    console.error('TELEGRAM_WEBHOOK_SECRET is not configured; refusing all updates');
+    return res.status(500).json({ ok: false });
+  }
+  if (req.headers['x-telegram-bot-api-secret-token'] !== expectedSecret) {
+    console.warn('Rejected webhook call with a missing or wrong secret token');
+    return res.status(401).json({ ok: false });
+  }
+
   // Explicitly handle Telegram POST updates
   if (req.method === 'POST') {
     try {
@@ -48,7 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const chatId = message.chat?.id;
       const text = message.text?.trim() || '';
-      const token = process.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || '8729008792:AAHQe2GrZRdx97O-sxNrJtiW02vXaTgN_H4';
+      const token = process.env.TELEGRAM_BOT_TOKEN;
 
       if (!token) {
         console.error('Missing Telegram Bot Token');
@@ -64,7 +76,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Phone Number extraction & matching
       const digitsOnly = text.replace(/\D/g, '');
-      if (digitsOnly.length < 5) {
+      if (digitsOnly.length < 9) {
+        // Only nudge when the message actually looks like an attempt at a
+        // phone number; otherwise stay quiet rather than replying to every
+        // sticker, contact card or stray word.
+        if (digitsOnly.length >= 5) {
+          await sendTelegramReply(
+            token,
+            chatId,
+            "Iltimos, telefon raqamingizni to'liq yuboring (masalan: +998901234567)."
+          );
+        }
         return res.status(200).json({ ok: true });
       }
 

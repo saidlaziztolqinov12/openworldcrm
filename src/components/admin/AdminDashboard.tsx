@@ -96,10 +96,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       );
     });
 
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
   const handleTeacherReassignChange = async (groupId: string, newTeacherId: string) => {
     const t = teachers.find((tech) => tech.id === newTeacherId);
-    if (t) {
+    if (!t) return;
+    try {
       await reassignTeacher(groupId, t.id, t.name);
+    } catch (err) {
+      console.error('Failed to reassign instructor:', err);
+      showToast('Could not reassign the instructor. Check your connection and try again.');
+    }
+  };
+
+  const handleArchiveToggle = async (groupId: string, archived: boolean) => {
+    try {
+      await archiveGroup(groupId, archived);
+    } catch (err) {
+      console.error('Failed to archive group:', err);
+      showToast('Could not update the cohort. Check your connection and try again.');
     }
   };
 
@@ -354,7 +372,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => archiveGroup(group.id, !group.archived)}
+                          onClick={() => handleArchiveToggle(group.id, !group.archived)}
                           className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                           title={group.archived ? 'Restore Group' : 'Archive Group'}
                         >

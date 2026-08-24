@@ -1,206 +1,56 @@
+// Load .env before anything reads process.env. Vite injects VITE_* into the
+// client on its own, but the API routes below run in Node and need this.
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, doc, updateDoc, getDoc } from "firebase/firestore";
-import { initializeApp as initAdminApp, cert, getApps as getAdminApps } from "firebase-admin/app";
-import { getMessaging } from "firebase-admin/messaging";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyClabMv0UKAy6FIak8RCqbneRsjkVmQrxk",
-  authDomain: "open-world-platform.firebaseapp.com",
-  projectId: "open-world-platform",
-  storageBucket: "open-world-platform.firebasestorage.app",
-  messagingSenderId: "619360434283",
-  appId: "1:619360434283:web:df5c43f0104efff7e1192e"
-};
+// The API routes live in api/ and are deployed as serverless functions on
+// Vercel. Mount the same handlers here so local development and any
+// self-hosted deployment run identical code — previously server.ts carried a
+// second, drifting copy of the webhook and push logic.
+import telegramWebhook from "./api/telegram-webhook";
+import sendTelegram from "./api/send-telegram";
+import sendPush from "./api/send-push";
 
-const appFirebase = initializeApp(firebaseConfig);
-const db = getFirestore(appFirebase);
+const PORT = Number(process.env.PORT) || 3000;
 
-if (!getAdminApps().length) {
-  try {
-    const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
-    if (serviceAccountEnv) {
-      const serviceAccount = JSON.parse(serviceAccountEnv);
-      initAdminApp({
-        credential: cert(serviceAccount)
-      });
-    } else {
-      initAdminApp({
-        projectId: 'open-world-platform'
-      });
+/** Adapt an Express handler pair to the Vercel handler signature. */
+const mount =
+  (handler: (req: any, res: any) => unknown) =>
+  async (req: express.Request, res: express.Response) => {
+    try {
+      await handler(req, res);
+    } catch (error) {
+      console.error(`Unhandled error in ${req.path}:`, error);
+      if (!res.headersSent) res.status(500).json({ error: "Internal server error" });
     }
-  } catch (e) {
-    console.warn('Firebase Admin init warning in server.ts:', e);
-  }
-}
-
-const BOT_TOKEN = process.env.VITE_TELEGRAM_BOT_TOKEN || '8729008792:AAHQe2GrZRdx97O-sxNrJtiW02vXaTgN_H4';
-
-async function sendTelegramReply(chatId: number | string, text: string) {
-  try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: text,
-        parse_mode: 'HTML'
-      })
-    });
-  } catch (err) {
-    console.error('Failed to send telegram reply:', err);
-  }
-}
-
-async function handleTelegramWebhookLogic(req: any, res: any) {
-  try {
-    const update = req.body;
-    if (!update || !update.message) {
-      return res.status(200).json({ status: "ok" });
-    }
-
-    const message = update.message;
-    const chatId = message.chat.id;
-    const text = message.text ? message.text.trim() : "";
-
-    if (!text) {
-      return res.status(200).json({ status: "ok" });
-    }
-
-    if (text.startsWith("/start")) {
-      const greeting = "Assalomu alaykum! <b>Open World Academy</b> tizimiga xush kelibsiz.\n\nFarzandingizning davomatini kuzatib borish uchun o'quv markazimizga taqdim etgan <b>telefon raqamingizni</b> yuboring:\n\n<i>(Masalan: +998901234567 yoki 901234567)</i>";
-      await sendTelegramReply(chatId, greeting);
-      return res.status(200).json({ status: "ok" });
-    }
-
-    // Check if message contains digits
-    const digitsOnly = text.replace(/\D/g, "");
-    if (digitsOnly.length < 5) {
-      return res.status(200).json({ status: "ok" });
-    }
-
-    const last9 = digitsOnly.slice(-9);
-
-    // Fetch all students and groups from Firestore
-    const studentsSnapshot = await getDocs(collection(db, "students"));
-    const groupsSnapshot = await getDocs(collection(db, "groups"));
-
-    const groupsMap = new Map<string, string>();
-    groupsSnapshot.forEach((docSnap) => {
-      const gData = docSnap.data();
-      groupsMap.set(docSnap.id, gData.name || "Guruh");
-    });
-
-    const matchedStudents: Array<{ id: string; name: string; groupName: string }> = [];
-
-    studentsSnapshot.forEach((docSnap) => {
-      const sData = docSnap.data();
-      const pPhone = (sData.parentPhone || sData.phone || "").toString();
-      const pPhoneDigits = pPhone.replace(/\D/g, "");
-      if (pPhoneDigits.endsWith(last9)) {
-        const studentName = `${sData.firstName || ''} ${sData.surname || ''}`.trim() || "O'quvchi";
-        const groupName = sData.groupId ? groupsMap.get(sData.groupId) || "Guruh" : "Guruhsiz";
-        matchedStudents.push({
-          id: docSnap.id,
-          name: studentName,
-          groupName
-        });
-      }
-    });
-
-    if (matchedStudents.length === 0) {
-      const notFoundText = "❌ Ushbu telefon raqami tizimda topilmadi.\n\nIltimos, raqamni to'g'ri kiritganingizni tekshirib qayta yuboring yoki administratorga murojaat qiling.";
-      await sendTelegramReply(chatId, notFoundText);
-    } else {
-      // Update all matched student documents with telegramChatId
-      for (const student of matchedStudents) {
-        const studentDocRef = doc(db, "students", student.id);
-        await updateDoc(studentDocRef, {
-          telegramChatId: chatId,
-          parentTelegramId: chatId
-        });
-      }
-
-      const studentNamesList = matchedStudents.map(s => `• <b>${s.name}</b> (${s.groupName})`).join('\n');
-      const successText = `✅ <b>Muvaffaqiyatli ulandi!</b>\n\n👤 <b>O'quvchi(lar):</b>\n${studentNamesList}\n\nEndi dars davomati va o'qituvchi izohlari muntazam ravishda sizga yuborib turiladi.`;
-      await sendTelegramReply(chatId, successText);
-    }
-
-    return res.status(200).json({ status: "ok" });
-  } catch (err) {
-    console.error("Error processing telegram webhook:", err);
-    return res.status(200).json({ status: "ok" }); // Always respond with HTTP 200 OK to Telegram
-  }
-}
+  };
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
 
-  app.use(express.json());
+  // Reject oversized bodies instead of buffering whatever is posted.
+  app.use(express.json({ limit: "100kb" }));
 
-  // Telegram webhook endpoints
-  app.post("/api/telegram-webhook", handleTelegramWebhookLogic);
-  app.post("/api/telegram-webhook.js", handleTelegramWebhookLogic);
+  // Use app.all, not app.post: the handlers do their own method checks and
+  // answer the CORS preflight. Registering POST only meant an OPTIONS request
+  // fell through to the SPA catch-all, so the cross-origin path used by the
+  // Capacitor build could never complete.
+  app.all("/api/telegram-webhook", mount(telegramWebhook));
+  app.all("/api/send-telegram", mount(sendTelegram));
+  app.all("/api/send-push", mount(sendPush));
 
-  // Send Push Notification endpoint
-  app.post("/api/send-push", async (req, res) => {
-    try {
-      const { recipientUserId, token, fcmToken, title, body, data } = req.body || {};
-      let targetToken = token || fcmToken;
-
-      if (!targetToken && recipientUserId) {
-        const userDocRef = doc(db, 'users', recipientUserId);
-        const userSnap = await getDoc(userDocRef);
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          targetToken = userData?.fcmToken;
-        }
-      }
-
-      if (!targetToken) {
-        return res.status(400).json({ error: "Missing fcmToken or recipientUserId" });
-      }
-
-      const message = {
-        token: targetToken,
-        notification: {
-          title: title || 'New Notification',
-          body: body || ''
-        },
-        data: data || {},
-        android: {
-          priority: 'high' as const,
-          notification: {
-            sound: 'default',
-            channelId: 'default'
-          }
-        }
-      };
-
-      let response;
-      try {
-        response = await getMessaging().send(message);
-      } catch (err: any) {
-        console.warn('Admin messaging send failed in server.ts:', err);
-        throw err;
-      }
-
-      res.json({ success: true, response, token: targetToken });
-    } catch (err: any) {
-      console.error("Error in /api/send-push:", err);
-      res.status(500).json({ error: err.message || "Failed to send push notification" });
-    }
-  });
-
-  // Health check
-  app.get("/api/health", (req, res) => {
+  app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
   });
 
-  // Vite middleware or static serving
+  // Any other /api/* path is a 404, in both dev and production. Letting these
+  // fall through means an unknown endpoint answers 200 with the SPA shell.
+  app.use("/api", (_req, res) => {
+    res.status(404).json({ error: "Not found" });
+  });
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -208,10 +58,13 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get('*all', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+    // Express 4 uses '*'. The previous '*all' is Express 5 syntax and compiled
+    // to a pattern matching only paths ending in "all", so every deep link
+    // (/inbox, /groups/:id) returned 404 on refresh.
+    app.get("*", (_req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
     });
   }
 

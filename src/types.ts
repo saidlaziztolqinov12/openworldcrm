@@ -10,7 +10,6 @@ export interface User {
   phone: string;
   title?: string;
   subject?: string;
-  password?: string;
   avatarColor?: string;
   createdAt?: string;
 }
@@ -19,6 +18,7 @@ export interface Group {
   id: string;
   name: string;
   schedule: string;
+  room?: string;
   teacherId: string;
   teacherName: string;
   archived?: boolean;

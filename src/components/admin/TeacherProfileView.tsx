@@ -339,7 +339,7 @@ const CohortAnalyticsCard: React.FC<CohortAnalyticsCardProps> = ({
             </button>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            {group.schedule} • Room {group.room || 'Main Hall'}
+            {group.schedule}{group.room ? ` • Room ${group.room}` : ''}
           </p>
         </div>
       </div>

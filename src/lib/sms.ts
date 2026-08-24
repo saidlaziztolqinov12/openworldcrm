@@ -31,6 +31,15 @@ export const createSmsUri = (phoneNumber: string, message: string = ''): string 
   return `sms:${cleanNumber}${separator}${encodeURIComponent(message)}`;
 };
 
+const escapeHtml = (value: string): string =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/**
+ * The Telegram relay sends with parse_mode: 'HTML'. Student names and the
+ * teacher's free-text comment are interpolated here, so an unescaped '<'
+ * (e.g. "progress < target") made Telegram reject the entire message and the
+ * parent silently received nothing.
+ */
 export const formatAttendanceNotification = (
   studentName: string,
   dateStr: string,
@@ -73,7 +82,7 @@ export const formatAttendanceNotification = (
   const lines: string[] = [
     "🔔 Open World — O'quvchi hisoboti",
     "",
-    `Student: ${studentName}`,
+    `Student: ${escapeHtml(studentName)}`,
     `Sana: ${formattedDate} (${dayOfWeek})`,
     `Holati: ${statusBadge}`
   ];
@@ -83,7 +92,7 @@ export const formatAttendanceNotification = (
   }
 
   if (note && note.trim() !== '') {
-    lines.push(`Izoh: ${note.trim()}`);
+    lines.push(`Izoh: ${escapeHtml(note.trim())}`);
   }
 
   lines.push("");

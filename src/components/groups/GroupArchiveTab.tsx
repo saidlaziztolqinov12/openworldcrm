@@ -24,6 +24,7 @@ import {
   X,
   Check
 } from 'lucide-react';
+import { toLocalDateString } from '../../utils/date';
 
 interface GroupArchiveTabProps {
   group: Group;
@@ -58,17 +59,20 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
   // Group events by Date Header (Today, Yesterday, Formatted Date)
   const groupedLogs = useMemo(() => {
     const today = new Date();
-    const todayDateStr = today.toISOString().substring(0, 10);
+    const todayDateStr = toLocalDateString(today);
 
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayDateStr = yesterday.toISOString().substring(0, 10);
+    const yesterdayDateStr = toLocalDateString(yesterday);
 
     const groupsMap = new Map<string, { header: string; dateKey: string; logs: GroupActivityLog[] }>();
 
     filteredLogs.forEach((log) => {
       const logDate = new Date(log.timestamp);
-      const logDateStr = !isNaN(logDate.getTime()) ? log.timestamp.substring(0, 10) : todayDateStr;
+      // log.timestamp is a UTC ISO string; slicing it would compare a UTC date
+      // against the local "today" above and mislabel the first five hours of
+      // every Tashkent day as Yesterday.
+      const logDateStr = !isNaN(logDate.getTime()) ? toLocalDateString(logDate) : todayDateStr;
 
       let headerLabel = '';
       if (logDateStr === todayDateStr) {

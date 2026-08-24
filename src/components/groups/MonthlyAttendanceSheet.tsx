@@ -21,6 +21,7 @@ import {
   UserX,
   Clock
 } from 'lucide-react';
+import { toLocalDateString } from '../../utils/date';
 
 interface ActiveCellDetail {
   student: MonthlyRosterStudent;
@@ -115,7 +116,7 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({
   const daysInMonth = useMemo(() => {
     const totalDays = new Date(selectedYear, selectedMonth + 1, 0).getDate();
     const days: { dayNumber: number; dateStr: string; dayOfWeek: string; isToday: boolean }[] = [];
-    const todayISO = today.toISOString().substring(0, 10);
+    const todayISO = toLocalDateString(today);
 
     for (let day = 1; day <= totalDays; day++) {
       const dateObj = new Date(selectedYear, selectedMonth, day);

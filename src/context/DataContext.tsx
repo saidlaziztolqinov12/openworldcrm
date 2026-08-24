@@ -7,7 +7,8 @@ import {
   InternalNotification,
   MonthlyRosterStudent,
   GroupActivityLog,
-  SalaryAdvance
+  SalaryAdvance,
+  NotificationStatus
 } from '../types';
 import { db } from '../firebase.config';
 import {
@@ -18,22 +19,13 @@ import {
   updateDoc,
   deleteDoc,
   query,
-  getDocs,
-  getDoc
+  writeBatch
 } from 'firebase/firestore';
-import {
-  INITIAL_USERS,
-  INITIAL_GROUPS,
-  INITIAL_STUDENTS,
-  INITIAL_ATTENDANCE,
-  INITIAL_NOTIFICATIONS,
-  INITIAL_GROUP_ACTIVITY_LOGS,
-  INITIAL_SALARY_ADVANCES,
-  seedInitialFirestoreData
-} from '../lib/seedData';
 import { useAuth } from './AuthContext';
 import { generateUniqueStudentId } from '../utils/studentId';
+import { todayLocalDateString } from '../utils/date';
 import { sendTelegramMessage } from '../services/telegram';
+import { apiFetch, apiJson } from '../lib/apiClient';
 import { formatAttendanceNotification } from '../lib/sms';
 
 interface DataContextType {
@@ -59,14 +51,14 @@ interface DataContextType {
   deleteStudent: (id: string) => Promise<void>;
   saveAttendanceRecord: (record: Omit<AttendanceRecord, 'id' | 'createdAt'> & { id?: string }) => Promise<string>;
   deleteAttendanceRecord: (id: string) => Promise<void>;
-  addTeacher: (teacher: Omit<User, 'id' | 'createdAt'>) => Promise<string>;
+  addTeacher: (teacher: Omit<User, 'id' | 'createdAt'>, password: string) => Promise<string>;
   updateTeacher: (id: string, teacher: Partial<User>) => Promise<void>;
   deleteTeacher: (id: string) => Promise<void>;
   migrateMissingStudentIds: () => Promise<number>;
   sendNotification: (notif: Omit<InternalNotification, 'id' | 'createdAt' | 'read' | 'readBy'>) => Promise<string>;
   markNotificationAsRead: (id: string, userId?: string) => Promise<void>;
   updateNotificationStatus: (notificationId: string, status: 'accepted' | 'declined' | 'read') => Promise<void>;
-  markAllNotificationsAsRead: (userId?: string) => Promise<void>;
+  markAllNotificationsAsRead: (userId: string | undefined, notificationIds: string[]) => Promise<void>;
   approveTransferRequest: (notificationId: string) => Promise<void>;
   rejectTransferRequest: (notificationId: string) => Promise<void>;
   publishAnnouncement: (title: string, message: string, priority?: 'normal' | 'important' | 'urgent') => Promise<string>;
@@ -74,7 +66,6 @@ interface DataContextType {
   addSalaryAdvance: (advance: Omit<SalaryAdvance, 'id' | 'createdAt'>) => Promise<string>;
   updateSalaryAdvance: (id: string, advance: Partial<SalaryAdvance>) => Promise<void>;
   deleteSalaryAdvance: (id: string) => Promise<void>;
-  resetDatabaseToDefaults: () => Promise<void>;
   getGroupStudents: (groupId: string) => Student[];
   getGroupAttendanceRecords: (groupId: string) => AttendanceRecord[];
   getGroupActivityLogs: (groupId: string) => GroupActivityLog[];
@@ -87,18 +78,38 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAuth();
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [notifications, setNotifications] = useState<InternalNotification[]>([]);
-  const [groupActivityLogs, setGroupActivityLogs] = useState<GroupActivityLog[]>(INITIAL_GROUP_ACTIVITY_LOGS);
-  const [salaryAdvances, setSalaryAdvances] = useState<SalaryAdvance[]>(INITIAL_SALARY_ADVANCES);
+  const [groupActivityLogs, setGroupActivityLogs] = useState<GroupActivityLog[]>([]);
+  const [salaryAdvances, setSalaryAdvances] = useState<SalaryAdvance[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isOnline, setIsOnline] = useState<boolean>(true);
 
-  // Initialize and listen to Firestore in real-time
+  // Initialize and listen to Firestore in real-time.
+  // Gated on currentUser: DataProvider sits above the login gate in App.tsx, so
+  // an ungated effect subscribed every collection before anyone signed in.
   useEffect(() => {
+    if (!currentUser) {
+      // Clear the previous session's records: signing in as someone else must
+      // not briefly render the last account's students, staff and payroll.
+      setUsers([]);
+      setGroups([]);
+      setStudents([]);
+      setAttendanceRecords([]);
+      setNotifications([]);
+      setGroupActivityLogs([]);
+      setSalaryAdvances([]);
+      setLoading(false);
+      return;
+    }
+
+    // Show a loading state while the first snapshots arrive, rather than an
+    // empty dashboard that looks like a centre with no data in it.
+    setLoading(true);
+
     let unsubscribeUsers = () => {};
     let unsubscribeGroups = () => {};
     let unsubscribeStudents = () => {};
@@ -112,15 +123,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const setupListeners = async () => {
       try {
-        // Auto-seed Firestore on initial connect if users collection is empty
-        try {
-          const snapshot = await getDocs(collection(db, 'users'));
-          if (snapshot.empty) {
-            await seedInitialFirestoreData(db, false);
-          }
-        } catch (e) {
-          console.warn('Firestore initial connection/seed notice:', e);
-        }
 
         // 1. Live Sync: users collection
         unsubscribeUsers = onSnapshot(
@@ -129,19 +131,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!snapshot.empty) {
               const items: User[] = [];
               snapshot.forEach((d) => {
-                const data = d.data() as Omit<User, 'id'>;
-                let u: User = { id: d.id, ...data };
-                if (u.id === 'admin-1' || u.role === 'admin' || (u.name && u.name.includes('Sarah'))) {
-                  u = {
-                    ...u,
-                    name: 'MuhammadIso Ermatov',
-                    firstName: 'MuhammadIso',
-                    surname: 'Ermatov',
-                    title: 'Director',
-                    role: 'admin'
-                  };
-                }
-                items.push(u);
+                // Strip any password left over from before Firebase Auth: the
+                // field is no longer written, but old documents may still carry one.
+                const { password: _legacyPassword, ...data } = d.data() as Record<string, unknown>;
+                items.push({ id: d.id, ...(data as Omit<User, 'id'>) });
               });
               setUsers(items);
             }
@@ -197,11 +190,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           (snapshot) => {
             const items: InternalNotification[] = [];
             snapshot.forEach((d) => {
-              const notif = { id: d.id, ...(d.data() as Omit<InternalNotification, 'id'>) };
-              if (notif.senderName && notif.senderName.includes('Sarah')) {
-                notif.senderName = notif.senderName.replace(/Sarah\s*Jenkins/gi, 'MuhammadIso Ermatov');
-              }
-              items.push(notif);
+              items.push({ id: d.id, ...(d.data() as Omit<InternalNotification, 'id'>) });
             });
             // Sort newest first
             items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -221,11 +210,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!snapshot.empty) {
               const items: GroupActivityLog[] = [];
               snapshot.forEach((d) => {
-                const log = { id: d.id, ...(d.data() as Omit<GroupActivityLog, 'id'>) };
-                if (log.actorName && log.actorName.includes('Sarah')) {
-                  log.actorName = log.actorName.replace(/Sarah\s*Jenkins/gi, 'MuhammadIso Ermatov');
-                }
-                items.push(log);
+                items.push({ id: d.id, ...(d.data() as Omit<GroupActivityLog, 'id'>) });
               });
               items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
               setGroupActivityLogs(items);
@@ -270,7 +255,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubscribeLogs();
       unsubscribeSalaryAdvances();
     };
-  }, []);
+  }, [currentUser]);
 
   const teachers = users.filter((u) => u.role === 'teacher');
 
@@ -285,7 +270,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await setDoc(doc(db, 'salary_advances', id), newAdvance);
     } catch (e) {
-      console.warn('Firestore write notice for addSalaryAdvance:', e);
+      console.error('Firestore write notice for addSalaryAdvance:', e);
+      throw e;
     }
     return id;
   };
@@ -295,7 +281,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await updateDoc(doc(db, 'salary_advances', id), advanceData);
     } catch (e) {
-      console.warn('Firestore update notice for updateSalaryAdvance:', e);
+      console.error('Firestore update notice for updateSalaryAdvance:', e);
+      throw e;
     }
   };
 
@@ -304,7 +291,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await deleteDoc(doc(db, 'salary_advances', id));
     } catch (e) {
-      console.warn('Firestore delete notice for deleteSalaryAdvance:', e);
+      console.error('Firestore delete notice for deleteSalaryAdvance:', e);
+      throw e;
     }
   };
 
@@ -341,7 +329,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await setDoc(doc(db, 'groups', id), newGroup);
     } catch (e) {
-      console.warn('Firestore write notice for addGroup:', e);
+      console.error('Firestore write notice for addGroup:', e);
+      throw e;
     }
 
     // Auto-log group creation activity in group_logs
@@ -375,7 +364,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await updateDoc(doc(db, 'groups', id), groupData);
     } catch (e) {
-      console.warn('Firestore write notice for updateGroup:', e);
+      console.error('Firestore write notice for updateGroup:', e);
+      throw e;
     }
 
     // If teacher was updated or assigned
@@ -408,27 +398,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       )
     );
 
-    for (const student of affectedStudents) {
-      try {
-        await updateDoc(doc(db, 'students', student.id), {
-          groupId: null,
-          previousGroupId: groupId,
-          status: 'active'
-        });
-      } catch (e) {
-        console.warn(`Firestore update notice for student ${student.id}:`, e);
-      }
-    }
-
-    // 2. Delete group from local state
-    setGroups((prev) => prev.filter((g) => g.id !== groupId));
-
-    // 3. Delete group from Firestore
+    // Unassign the students and delete the cohort atomically. Previously these
+    // were N independent writes whose errors were swallowed, so the cohort was
+    // deleted even when some students failed to be detached — leaving them
+    // pointing at a group that no longer exists.
     try {
-      await deleteDoc(doc(db, 'groups', groupId));
+      const CHUNK = 400;
+      for (let i = 0; i < affectedStudents.length; i += CHUNK) {
+        const batch = writeBatch(db);
+        for (const student of affectedStudents.slice(i, i + CHUNK)) {
+          batch.update(doc(db, 'students', student.id), {
+            groupId: null,
+            previousGroupId: groupId,
+            status: 'active'
+          });
+        }
+        // Delete the group in the final chunk, once every detach has succeeded.
+        if (i + CHUNK >= affectedStudents.length) {
+          batch.delete(doc(db, 'groups', groupId));
+        }
+        await batch.commit();
+      }
+      if (affectedStudents.length === 0) {
+        await deleteDoc(doc(db, 'groups', groupId));
+      }
     } catch (e) {
-      console.warn(`Firestore delete notice for group ${groupId}:`, e);
+      console.error(`Failed to delete group ${groupId}:`, e);
+      throw e;
     }
+
+    setGroups((prev) => prev.filter((g) => g.id !== groupId));
   };
 
   const reassignTeacher = async (groupId: string, teacherId: string, teacherName: string): Promise<void> => {
@@ -459,7 +458,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await setDoc(doc(db, 'students', id), newStudent);
     } catch (e) {
-      console.warn('Firestore write notice for addStudent:', e);
+      console.error('Firestore write notice for addStudent:', e);
+      throw e;
     }
 
     // Auto-log student enrollment if assigned directly to a group
@@ -509,7 +509,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await updateDoc(doc(db, 'students', id), studentData);
     } catch (e) {
-      console.warn('Firestore write notice for updateStudent:', e);
+      console.error('Firestore write notice for updateStudent:', e);
+      throw e;
     }
   };
 
@@ -531,7 +532,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await updateDoc(doc(db, 'students', studentId), updatePayload);
     } catch (e) {
-      console.warn('Firestore write notice for transferStudent:', e);
+      console.error('Firestore write notice for transferStudent:', e);
+      throw e;
     }
 
     const actorId = currentUser?.id || 'staff';
@@ -585,7 +587,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await deleteDoc(doc(db, 'students', id));
     } catch (e) {
-      console.warn('Firestore delete notice for deleteStudent:', e);
+      console.error('Firestore delete notice for deleteStudent:', e);
+      throw e;
     }
   };
 
@@ -608,7 +611,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       groupId: record.groupId || '',
       groupName: record.groupName || '',
       teacherId: record.teacherId || '',
-      date: record.date || new Date().toISOString(),
+      date: record.date || todayLocalDateString(),
       lessonNumber: record.lessonNumber || 1,
       records: cleanedRecords,
       statusMap: record.statusMap || {},
@@ -656,6 +659,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Error saving attendance:', error);
+      throw error;
     }
     return recordId;
   };
@@ -669,23 +673,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const addTeacher = async (teacherData: Omit<User, 'id' | 'createdAt'>): Promise<string> => {
-    const id = `teacher-${Date.now()}`;
-    const newTeacher: User = {
-      ...teacherData,
-      id,
-      role: 'teacher',
-      avatarColor: teacherData.avatarColor || 'bg-indigo-600',
-      createdAt: new Date().toISOString()
-    };
-
-    setUsers((prev) => [...prev, newTeacher]);
-    try {
-      await setDoc(doc(db, 'users', id), newTeacher);
-    } catch (e) {
-      console.warn('Firestore write notice for addTeacher:', e);
-    }
-    return id;
+  const addTeacher = async (
+    teacherData: Omit<User, 'id' | 'createdAt'>,
+    password: string
+  ): Promise<string> => {
+    // The Auth account and the profile document are created together on the
+    // server; the profile is keyed by the new Auth UID so firestore.rules can
+    // look up the caller's role. The users listener picks the new record up.
+    const { uid } = await apiJson<{ uid: string }>('/api/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: teacherData.email,
+        password,
+        profile: {
+          ...teacherData,
+          avatarColor: teacherData.avatarColor || 'bg-indigo-600'
+        }
+      })
+    });
+    return uid;
   };
 
   const updateTeacher = async (id: string, teacherData: Partial<User>): Promise<void> => {
@@ -693,17 +699,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await updateDoc(doc(db, 'users', id), teacherData);
     } catch (e) {
-      console.warn('Firestore write notice for updateTeacher:', e);
+      console.error('Firestore write notice for updateTeacher:', e);
+      throw e;
     }
   };
 
   const deleteTeacher = async (id: string): Promise<void> => {
+    // Deleting only the profile would leave a working sign-in credential
+    // behind, so the Auth user goes first — on the server.
+    await apiJson(`/api/users?uid=${encodeURIComponent(id)}`, { method: 'DELETE' });
     setUsers((prev) => prev.filter((u) => u.id !== id));
-    try {
-      await deleteDoc(doc(db, 'users', id));
-    } catch (e) {
-      console.warn('Firestore delete notice for deleteTeacher:', e);
-    }
   };
 
   // Notification methods
@@ -723,11 +728,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await setDoc(doc(db, 'notifications', id), newNotif);
 
-      // Trigger push notification via /api/send-push
-      if (notifData.recipientId) {
-        await fetch('/api/send-push', {
+      // Trigger push notification via /api/send-push.
+      // 'GLOBAL' is not a user document, so a broadcast has no single device to
+      // target and the route would reject it; skip rather than log an error.
+      if (notifData.recipientId && notifData.recipientId !== 'GLOBAL') {
+        await apiFetch('/api/send-push', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             recipientUserId: notifData.recipientId,
             title: "🔔 New Request Received",
@@ -770,37 +776,71 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     notificationId: string,
     status: 'accepted' | 'declined' | 'read'
   ): Promise<void> => {
+    // InboxView only renders APPROVED / COMPLETED / REJECTED, and 'accepted' /
+    // 'declined' are not members of NotificationStatus, so a decision written
+    // under those names disappeared from the inbox entirely.
+    const canonicalStatus: NotificationStatus =
+      status === 'accepted' ? 'APPROVED' : status === 'declined' ? 'REJECTED' : 'READ';
     setNotifications((prev) =>
-      prev.map((n) => (n.id === notificationId ? { ...n, status, read: true } : n))
+      prev.map((n) => (n.id === notificationId ? { ...n, status: canonicalStatus, read: true } : n))
     );
     try {
-      await setDoc(doc(db, 'notifications', notificationId), { status, read: true }, { merge: true });
+      await setDoc(doc(db, 'notifications', notificationId), { status: canonicalStatus, read: true }, { merge: true });
     } catch (e) {
       console.warn('Firestore update notice for updateNotificationStatus:', e);
     }
   };
 
-  const markAllNotificationsAsRead = async (userId?: string): Promise<void> => {
+  const markAllNotificationsAsRead = async (
+    userId: string | undefined,
+    notificationIds: string[]
+  ): Promise<void> => {
+    if (!userId || notificationIds.length === 0) return;
+
+    // `notifications` is the whole centre's collection — recipient scoping only
+    // ever existed in the view layer. Marking every document read meant one
+    // teacher tapping "mark all read" cleared the director's inbox and every
+    // other teacher's too. The caller passes exactly the ids it is displaying,
+    // so the button always matches the list and the badge it sits next to.
+    const wanted = new Set(notificationIds);
+    const mine = notifications.filter((n) => wanted.has(n.id));
+    const pending = mine.filter((n) => !n.read || !(n.readBy || []).includes(userId));
+    if (pending.length === 0) return;
+
+    const nextReadBy = (n: InternalNotification) =>
+      (n.readBy || []).includes(userId) ? (n.readBy as string[]) : [...(n.readBy || []), userId];
+
+    // `read` is a single shared boolean on the document. For a broadcast
+    // (recipientId 'GLOBAL' / 'all_teachers' / 'all') setting it marks the
+    // announcement read for everyone, so those documents only get the
+    // per-person `readBy` entry.
+    const isShared = (n: InternalNotification) =>
+      n.recipientId !== userId;
+    const payloadFor = (n: InternalNotification) =>
+      isShared(n) ? { readBy: nextReadBy(n) } : { read: true, readBy: nextReadBy(n) };
+
     setNotifications((prev) =>
-      prev.map((n) => {
-        const readBy = n.readBy ? [...n.readBy] : [];
-        if (userId && !readBy.includes(userId)) {
-          readBy.push(userId);
-        }
-        return { ...n, read: true, readBy };
-      })
+      prev.map((n) =>
+        pending.some((p) => p.id === n.id) ? { ...n, ...payloadFor(n) } : n
+      )
     );
 
     try {
-      notifications.forEach(async (n) => {
-        const readBy = n.readBy ? [...n.readBy] : [];
-        if (userId && !readBy.includes(userId)) {
-          readBy.push(userId);
+      // Batched instead of N un-awaited writes. The previous
+      // `forEach(async ...)` never awaited, so the try/catch could not catch
+      // anything and failures surfaced as unhandled rejections.
+      // Firestore caps a batch at 500 operations, so chunk it.
+      const CHUNK = 400;
+      for (let i = 0; i < pending.length; i += CHUNK) {
+        const batch = writeBatch(db);
+        for (const n of pending.slice(i, i + CHUNK)) {
+          batch.set(doc(db, 'notifications', n.id), payloadFor(n), { merge: true });
         }
-        await setDoc(doc(db, 'notifications', n.id), { read: true, readBy }, { merge: true });
-      });
+        await batch.commit();
+      }
     } catch (e) {
-      console.warn('Firestore update notice for markAllNotificationsAsRead:', e);
+      console.error('Failed to mark notifications as read:', e);
+      throw e;
     }
   };
 
@@ -959,7 +999,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       recipientId: 'GLOBAL',
       recipientRole: 'all',
       senderId: 'admin-broadcast',
-      senderName: currentUser?.name || 'MuhammadIso Ermatov (Director)',
+      senderName: currentUser?.name || 'Administration',
       senderRole: 'admin',
       type: 'ANNOUNCEMENT',
       title,
@@ -969,21 +1009,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const resetDatabaseToDefaults = async (): Promise<void> => {
-    setLoading(true);
-    setUsers(INITIAL_USERS);
-    setGroups(INITIAL_GROUPS);
-    setStudents(INITIAL_STUDENTS);
-    setAttendanceRecords(INITIAL_ATTENDANCE);
-    setNotifications(INITIAL_NOTIFICATIONS);
-    setGroupActivityLogs(INITIAL_GROUP_ACTIVITY_LOGS);
-    try {
-      await seedInitialFirestoreData(db, true);
-    } catch (e) {
-      console.warn('Reset database notice:', e);
-    }
-    setLoading(false);
-  };
 
   // Strictly active currently enrolled students in this group
   const getGroupStudents = useCallback((groupId: string): Student[] => {
@@ -1102,7 +1127,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addSalaryAdvance,
         updateSalaryAdvance,
         deleteSalaryAdvance,
-        resetDatabaseToDefaults,
         getGroupStudents,
         getGroupAttendanceRecords,
         getGroupActivityLogs,

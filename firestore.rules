@@ -1,8 +1,90 @@
 rules_version = '2';
+
+// Access is decided by the caller's Firebase Auth identity and the role stored
+// on their own profile document, users/{uid}. The client cannot grant itself a
+// role: it can only read what the server wrote.
+//
+// Deploy with:  firebase deploy --only firestore:rules
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return signedIn() && profile().role == 'admin';
+    }
+
+    // A password must never be stored here again — Firebase Auth owns it.
+    function noPasswordField() {
+      return !request.resource.data.keys().hasAny(['password']);
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn();
+
+      // Staff accounts are created and deleted through api/users.ts with the
+      // Admin SDK, which bypasses these rules. From the client, a person may
+      // only edit their own profile (and never their own role), while an admin
+      // may edit anyone's profile.
+      allow update: if noPasswordField() && (
+        isAdmin() ||
+        (signedIn() && request.auth.uid == userId &&
+         request.resource.data.role == resource.data.role)
+      );
+      allow create, delete: if false;
+    }
+
+    // Payroll is admin-only. It used to stream into every teacher's browser.
+    match /salary_advances/{advanceId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /students/{studentId} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+    }
+
+    match /groups/{groupId} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+    }
+
+    // Attendance is currently written to all three of these collections (see
+    // saveAttendanceRecord). Consolidating onto attendance_records is tracked
+    // separately; until then all three must be allowed or saving breaks.
+    match /attendance_records/{recordId} {
+      allow read, write: if signedIn();
+    }
+
+    match /attendance/{recordId} {
+      allow read, write: if signedIn();
+    }
+
+    match /sessions/{recordId} {
+      allow read, write: if signedIn();
+    }
+
+    match /notifications/{notificationId} {
+      allow read, write: if signedIn();
+    }
+
+    // Audit trail: append-only. Never edited or deleted from the client.
+    match /group_logs/{logId} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if false;
+    }
+
+    // Anything not named above is denied.
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

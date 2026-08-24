@@ -1,9 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
-import { INITIAL_USERS } from '../lib/seedData';
-import { setPersistence, browserLocalPersistence } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updatePassword,
+  signOut
+} from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { Capacitor } from '@capacitor/core';
 
 interface AuthContextType {
@@ -12,65 +19,90 @@ interface AuthContextType {
   isAdmin: boolean;
   isTeacher: boolean;
   isLoading: boolean;
-  loginAs: (user: User) => void;
   loginWithCredentials: (
     email: string,
-    password: string,
-    registeredUsers?: User[]
-  ) => { success: boolean; message?: string };
-  logout: () => void;
+    password: string
+  ) => Promise<{ success: boolean; message?: string }>;
+  sendPasswordReset: (email: string) => Promise<{ success: boolean; message?: string }>;
+  changePassword: (newPassword: string) => Promise<{ success: boolean; message?: string }>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_USER_KEY = 'openworld_active_user';
+/**
+ * Turn a Firebase Auth error into something a person can act on. The raw
+ * codes ("auth/invalid-credential") are not useful to a teacher.
+ */
+const describeAuthError = (code: string): string => {
+  switch (code) {
+    case 'auth/invalid-email':
+      return 'That email address is not valid.';
+    case 'auth/user-disabled':
+      return 'This account has been disabled. Ask the director to re-enable it.';
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return 'Incorrect email or password.';
+    case 'auth/too-many-requests':
+      return 'Too many attempts. Wait a few minutes and try again.';
+    case 'auth/network-request-failed':
+      return 'Could not reach the server. Check your connection.';
+    case 'auth/configuration-not-found':
+    case 'auth/operation-not-allowed':
+      // The single most likely first-deploy mistake, and impossible to guess
+      // from Firebase's own wording ("CONFIGURATION_NOT_FOUND").
+      return 'Email sign-in is not enabled for this project yet. Enable Authentication → Email/Password in the Firebase Console.';
+    case 'auth/weak-password':
+      return 'Choose a longer password (at least 8 characters).';
+    case 'auth/requires-recent-login':
+      return 'For security, sign out and back in before changing your password.';
+    default:
+      return 'Could not complete the request. Please try again.';
+  }
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    try {
-      sessionStorage.removeItem('edupulse_active_user');
-      localStorage.removeItem('edupulse_active_user');
-      sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-
-      const saved = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && (parsed.role === 'admin' || parsed.id === 'admin-1' || (parsed.name && parsed.name.includes('Sarah')))) {
-          parsed.name = 'MuhammadIso Ermatov';
-          parsed.firstName = 'MuhammadIso';
-          parsed.surname = 'Ermatov';
-          parsed.title = 'Director';
-        }
-        return parsed;
-      }
-    } catch {
-      // ignore
-    }
-    return null;
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // Set Firebase auth persistence to local storage
+    // Keep the session across reloads. Firebase Auth owns it now — the app no
+    // longer stores a user object (or a password) in localStorage, where the
+    // role could simply be edited to 'admin'.
     setPersistence(auth, browserLocalPersistence).catch((err) => {
       console.warn('Firebase persistence warning:', err);
     });
 
-    // Simulate short check for auth state restoration
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 150);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        setCurrentUser(null);
+        setIsLoading(false);
+        return;
+      }
+      try {
+        // The profile — including the role — is read from Firestore, keyed by
+        // the Auth UID. Firestore rules check the same document, so the client
+        // cannot grant itself a role.
+        const snapshot = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (!snapshot.exists()) {
+          console.error('Signed-in user has no profile document:', firebaseUser.uid);
+          await signOut(auth);
+          setCurrentUser(null);
+          return;
+        }
+        const data = snapshot.data() as Omit<User, 'id'>;
+        setCurrentUser({ ...data, id: firebaseUser.uid, email: firebaseUser.email || data.email });
+      } catch (error) {
+        console.error('Could not load the signed-in user profile:', error);
+        setCurrentUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    });
 
-    return () => clearTimeout(timer);
+    return unsubscribe;
   }, []);
-
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-    }
-  }, [currentUser]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -85,13 +117,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             PushNotifications.register();
           }
         });
-        
+
         PushNotifications.addListener('registration', async (token) => {
-          if (token && token.value && currentUser && currentUser.id) {
+          if (token?.value && currentUser?.id) {
             try {
               await updateDoc(doc(db, 'users', currentUser.id), {
                 fcmToken: token.value,
-                fcmTokenUpdatedAt: new Date()
+                fcmTokenUpdatedAt: new Date().toISOString()
               });
             } catch (e) {
               console.warn('Failed to save FCM token to Firestore:', e);
@@ -109,121 +141,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }).catch((err) => {
         console.warn('Failed to load PushNotifications plugin:', err);
       });
-    } else {
-      console.log('Push notifications registration skipped: running on web browser.');
     }
 
     return () => {
-      if (regListener && typeof regListener.remove === 'function') {
-        regListener.remove();
-      }
-      if (actionListener && typeof actionListener.remove === 'function') {
-        actionListener.remove();
-      }
+      if (regListener?.remove) regListener.remove();
+      if (actionListener?.remove) actionListener.remove();
     };
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
-  const loginAs = (user: User) => {
-    const sanitizedUser = { ...user };
-    if (sanitizedUser.role === 'admin' || sanitizedUser.id === 'admin-1' || (sanitizedUser.name && sanitizedUser.name.includes('Sarah'))) {
-      sanitizedUser.name = 'MuhammadIso Ermatov';
-      sanitizedUser.firstName = 'MuhammadIso';
-      sanitizedUser.surname = 'Ermatov';
-      sanitizedUser.title = 'Director';
-    }
-    setCurrentUser(sanitizedUser);
-    localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(sanitizedUser));
-  };
-
-  const loginWithCredentials = (
+  const loginWithCredentials = async (
     email: string,
-    password: string,
-    registeredUsers: User[] = []
-  ): { success: boolean; message?: string } => {
+    password: string
+  ): Promise<{ success: boolean; message?: string }> => {
     const trimmedEmail = email.trim().toLowerCase();
-    const trimmedPassword = password.trim();
-
-    if (!trimmedEmail || !trimmedPassword) {
+    if (!trimmedEmail || !password) {
       return { success: false, message: 'Please enter both email and password.' };
     }
-
-    if (
-      (trimmedEmail === 'admin@center.com' || trimmedEmail === 'admin' || trimmedEmail === 'director' || trimmedEmail === 'admin@openworld.edu' || trimmedEmail === 'admin@edupulse.edu') &&
-      trimmedPassword === 'admin123'
-    ) {
-      const foundAdmin = registeredUsers.find((u) => u.role === 'admin');
-      const adminUser: User = {
-        ...(foundAdmin || INITIAL_USERS[0]),
-        name: 'MuhammadIso Ermatov',
-        firstName: 'MuhammadIso',
-        surname: 'Ermatov',
-        title: 'Director',
-        role: 'admin'
-      };
-      setCurrentUser(adminUser);
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(adminUser));
+    try {
+      // onAuthStateChanged above loads the profile and sets currentUser.
+      await signInWithEmailAndPassword(auth, trimmedEmail, password);
       return { success: true };
+    } catch (error: any) {
+      return { success: false, message: describeAuthError(error?.code) };
     }
-
-    const combinedUsers = [...registeredUsers, ...INITIAL_USERS];
-    const matchedUser = combinedUsers.find(
-      (u) =>
-        u.email.toLowerCase() === trimmedEmail ||
-        u.name.toLowerCase() === trimmedEmail ||
-        (u.firstName && u.firstName.toLowerCase() === trimmedEmail)
-    );
-
-    if (!matchedUser) {
-      return {
-        success: false,
-        message: 'No account found with this login. Please check your spelling.'
-      };
-    }
-
-    const validPassword = matchedUser.password || 'teacher123';
-    if (trimmedPassword !== validPassword) {
-      return {
-        success: false,
-        message: 'Incorrect password. Please verify your credentials and try again.'
-      };
-    }
-
-    const sanitizedUser = { ...matchedUser };
-    if (sanitizedUser.role === 'admin' || sanitizedUser.id === 'admin-1' || (sanitizedUser.name && sanitizedUser.name.includes('Sarah'))) {
-      sanitizedUser.name = 'MuhammadIso Ermatov';
-      sanitizedUser.firstName = 'MuhammadIso';
-      sanitizedUser.surname = 'Ermatov';
-      sanitizedUser.title = 'Director';
-    }
-
-    setCurrentUser(sanitizedUser);
-    localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(sanitizedUser));
-    return { success: true };
   };
 
-  const logout = () => {
+  const sendPasswordReset = async (
+    email: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) {
+      return { success: false, message: 'Enter your email address first.' };
+    }
+    try {
+      await sendPasswordResetEmail(auth, trimmedEmail);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, message: describeAuthError(error?.code) };
+    }
+  };
+
+  const changePassword = async (
+    newPassword: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (!auth.currentUser) return { success: false, message: 'You are not signed in.' };
+    if (newPassword.length < 8) {
+      return { success: false, message: 'Choose a password of at least 8 characters.' };
+    }
+    try {
+      await updatePassword(auth.currentUser, newPassword);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, message: describeAuthError(error?.code) };
+    }
+  };
+
+  const logout = async (): Promise<void> => {
+    // Clear the FCM token so notifications stop following a device that has
+    // been handed to somebody else.
+    if (currentUser?.id) {
+      try {
+        await updateDoc(doc(db, 'users', currentUser.id), { fcmToken: null });
+      } catch {
+        // Signing out matters more than tidying the token.
+      }
+    }
+    await signOut(auth);
     setCurrentUser(null);
-    sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-    localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-    sessionStorage.removeItem('edupulse_active_user');
-    localStorage.removeItem('edupulse_active_user');
   };
 
   const role = currentUser?.role || null;
-  const isAdmin = role === 'admin';
-  const isTeacher = role === 'teacher';
 
   return (
     <AuthContext.Provider
       value={{
         currentUser,
         role,
-        isAdmin,
-        isTeacher,
+        isAdmin: role === 'admin',
+        isTeacher: role === 'teacher',
         isLoading,
-        loginAs,
         loginWithCredentials,
-        logout,
+        sendPasswordReset,
+        changePassword,
+        logout
       }}
     >
       {children}
