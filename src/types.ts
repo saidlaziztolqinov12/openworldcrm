@@ -19,6 +19,7 @@ export interface Group {
   id: string;
   name: string;
   schedule: string;
+  room?: string;
   teacherId: string;
   teacherName: string;
   archived?: boolean;

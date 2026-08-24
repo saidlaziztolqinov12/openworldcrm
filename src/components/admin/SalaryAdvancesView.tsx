@@ -22,6 +22,7 @@ import {
   CalendarDays,
   Sparkles
 } from 'lucide-react';
+import { todayLocalDateString } from '../../utils/date';
 
 const MONTH_NAMES = [
   { num: '01', short: 'Jan', full: 'January' },
@@ -62,7 +63,7 @@ export const SalaryAdvancesView: React.FC = () => {
   // Form states
   const [formTeacherId, setFormTeacherId] = useState<string>('');
   const [formAmountInput, setFormAmountInput] = useState<string>('');
-  const [formDate, setFormDate] = useState<string>(new Date().toISOString().substring(0, 10));
+  const [formDate, setFormDate] = useState<string>(todayLocalDateString());
   const [formNote, setFormNote] = useState<string>('');
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -214,7 +215,7 @@ export const SalaryAdvancesView: React.FC = () => {
     setEditingAdvance(null);
     setFormTeacherId(defaultTeacherId || teachers[0]?.id || '');
     setFormAmountInput('');
-    setFormDate(new Date().toISOString().substring(0, 10));
+    setFormDate(todayLocalDateString());
     setFormNote('');
     setFormError(null);
     setIsModalOpen(true);
@@ -224,7 +225,7 @@ export const SalaryAdvancesView: React.FC = () => {
     setEditingAdvance(adv);
     setFormTeacherId(adv.teacherId);
     setFormAmountInput(adv.amount.toLocaleString('en-US').replace(/,/g, ' '));
-    setFormDate(adv.date || new Date().toISOString().substring(0, 10));
+    setFormDate(adv.date || todayLocalDateString());
     setFormNote(adv.note || '');
     setFormError(null);
     setIsModalOpen(true);
@@ -516,7 +517,7 @@ export const SalaryAdvancesView: React.FC = () => {
                 >
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <TeacherAvatar
-                      teacher={group.teacher || { name: group.teacherName, email: '' }}
+                      teacher={group.teacher || { name: group.teacherName }}
                       className="w-10 h-10 sm:w-11 sm:h-11 shrink-0"
                     />
                     <div className="min-w-0">

@@ -273,7 +273,7 @@ export const InboxView: React.FC<InboxViewProps> = ({ onSelectGroup: _onSelectGr
         senderId: currentUser?.id || 'teacher-1',
         senderName: currentUser?.name || 'Instructor',
         senderRole: currentUser?.role || 'teacher',
-        type: reqType,
+        type: reqType === 'alert' ? 'ANNOUNCEMENT' : 'SYSTEM',
         title: reqTitle.trim(),
         message: reqMessage.trim(),
         status: 'pending',

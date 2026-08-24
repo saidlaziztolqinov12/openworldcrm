@@ -24,6 +24,7 @@ import {
   X,
   Check
 } from 'lucide-react';
+import { toLocalDateString } from '../../utils/date';
 
 interface GroupArchiveTabProps {
   group: Group;
@@ -58,11 +59,11 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
   // Group events by Date Header (Today, Yesterday, Formatted Date)
   const groupedLogs = useMemo(() => {
     const today = new Date();
-    const todayDateStr = today.toISOString().substring(0, 10);
+    const todayDateStr = toLocalDateString(today);
 
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayDateStr = yesterday.toISOString().substring(0, 10);
+    const yesterdayDateStr = toLocalDateString(yesterday);
 
     const groupsMap = new Map<string, { header: string; dateKey: string; logs: GroupActivityLog[] }>();
 

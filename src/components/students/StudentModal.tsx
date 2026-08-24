@@ -4,6 +4,7 @@ import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { X, UserPlus, Calendar, FileText, GraduationCap, ArrowRightLeft } from 'lucide-react';
 import { PhoneInput } from '../common/PhoneInput';
+import { todayLocalDateString } from '../../utils/date';
 
 interface StudentModalProps {
   isOpen: boolean;
@@ -97,7 +98,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
           birthDate,
           notes: notes.trim(),
           groupId: selectedGroupId,
-          enrolledDate: new Date().toISOString().substring(0, 10),
+          enrolledDate: todayLocalDateString(),
           status: 'active'
         });
       }

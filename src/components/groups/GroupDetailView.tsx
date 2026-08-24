@@ -217,6 +217,15 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
       setAttendanceError("Attendance can only be recorded for today and the last 2 days.");
       return;
     }
+    const unmarked = groupStudents.filter((s) => !statusMap[s.id]);
+    if (unmarked.length > 0) {
+      setAttendanceError(
+        unmarked.length === 1
+          ? `${unmarked[0].firstName} ${unmarked[0].surname} is not marked yet.`
+          : `${unmarked.length} students are not marked yet.`
+      );
+      return;
+    }
     setAttendanceError(null);
     setSavingAttendance(true);
 
@@ -224,7 +233,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
       const recordsList = groupStudents.map((s) => ({
         studentId: s.id || s.studentId || '',
         studentName: `${s.firstName || ''} ${s.surname || ''}`.trim() || s.studentId || '',
-        status: statusMap[s.id] || 'present'
+        status: statusMap[s.id]
       }));
 
       const existing = attendanceRecords.find(
@@ -237,7 +246,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
         groupId: group.id || '',
         groupName: group.name || '',
         teacherId: group.teacherId || '',
-        date: selectedDate || new Date().toISOString(),
+        date: selectedDate || todayFormatted,
         lessonNumber: 1,
         records: recordsList,
         statusMap,
@@ -256,6 +265,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
       console.error('Error saving attendance:', error);
+      setAttendanceError('Could not save the register. Check your connection and try again.');
     } finally {
       setSavingAttendance(false);
     }

@@ -7,7 +7,8 @@ import {
   InternalNotification,
   MonthlyRosterStudent,
   GroupActivityLog,
-  SalaryAdvance
+  SalaryAdvance,
+  NotificationStatus
 } from '../types';
 import { db } from '../firebase.config';
 import {
@@ -285,7 +286,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await setDoc(doc(db, 'salary_advances', id), newAdvance);
     } catch (e) {
-      console.warn('Firestore write notice for addSalaryAdvance:', e);
+      console.error('Firestore write notice for addSalaryAdvance:', e);
+      throw e;
     }
     return id;
   };
@@ -295,7 +297,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await updateDoc(doc(db, 'salary_advances', id), advanceData);
     } catch (e) {
-      console.warn('Firestore update notice for updateSalaryAdvance:', e);
+      console.error('Firestore update notice for updateSalaryAdvance:', e);
+      throw e;
     }
   };
 
@@ -304,7 +307,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await deleteDoc(doc(db, 'salary_advances', id));
     } catch (e) {
-      console.warn('Firestore delete notice for deleteSalaryAdvance:', e);
+      console.error('Firestore delete notice for deleteSalaryAdvance:', e);
+      throw e;
     }
   };
 
@@ -341,7 +345,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await setDoc(doc(db, 'groups', id), newGroup);
     } catch (e) {
-      console.warn('Firestore write notice for addGroup:', e);
+      console.error('Firestore write notice for addGroup:', e);
+      throw e;
     }
 
     // Auto-log group creation activity in group_logs
@@ -375,7 +380,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await updateDoc(doc(db, 'groups', id), groupData);
     } catch (e) {
-      console.warn('Firestore write notice for updateGroup:', e);
+      console.error('Firestore write notice for updateGroup:', e);
+      throw e;
     }
 
     // If teacher was updated or assigned
@@ -459,7 +465,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await setDoc(doc(db, 'students', id), newStudent);
     } catch (e) {
-      console.warn('Firestore write notice for addStudent:', e);
+      console.error('Firestore write notice for addStudent:', e);
+      throw e;
     }
 
     // Auto-log student enrollment if assigned directly to a group
@@ -509,7 +516,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await updateDoc(doc(db, 'students', id), studentData);
     } catch (e) {
-      console.warn('Firestore write notice for updateStudent:', e);
+      console.error('Firestore write notice for updateStudent:', e);
+      throw e;
     }
   };
 
@@ -531,7 +539,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await updateDoc(doc(db, 'students', studentId), updatePayload);
     } catch (e) {
-      console.warn('Firestore write notice for transferStudent:', e);
+      console.error('Firestore write notice for transferStudent:', e);
+      throw e;
     }
 
     const actorId = currentUser?.id || 'staff';
@@ -585,7 +594,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await deleteDoc(doc(db, 'students', id));
     } catch (e) {
-      console.warn('Firestore delete notice for deleteStudent:', e);
+      console.error('Firestore delete notice for deleteStudent:', e);
+      throw e;
     }
   };
 
@@ -656,6 +666,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Error saving attendance:', error);
+      throw error;
     }
     return recordId;
   };
@@ -683,7 +694,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await setDoc(doc(db, 'users', id), newTeacher);
     } catch (e) {
-      console.warn('Firestore write notice for addTeacher:', e);
+      console.error('Firestore write notice for addTeacher:', e);
+      throw e;
     }
     return id;
   };
@@ -693,7 +705,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await updateDoc(doc(db, 'users', id), teacherData);
     } catch (e) {
-      console.warn('Firestore write notice for updateTeacher:', e);
+      console.error('Firestore write notice for updateTeacher:', e);
+      throw e;
     }
   };
 
@@ -702,7 +715,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await deleteDoc(doc(db, 'users', id));
     } catch (e) {
-      console.warn('Firestore delete notice for deleteTeacher:', e);
+      console.error('Firestore delete notice for deleteTeacher:', e);
+      throw e;
     }
   };
 
@@ -770,11 +784,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     notificationId: string,
     status: 'accepted' | 'declined' | 'read'
   ): Promise<void> => {
+    // InboxView only renders APPROVED / COMPLETED / REJECTED, and 'accepted' /
+    // 'declined' are not members of NotificationStatus, so a decision written
+    // under those names disappeared from the inbox entirely.
+    const canonicalStatus: NotificationStatus =
+      status === 'accepted' ? 'APPROVED' : status === 'declined' ? 'REJECTED' : 'READ';
     setNotifications((prev) =>
-      prev.map((n) => (n.id === notificationId ? { ...n, status, read: true } : n))
+      prev.map((n) => (n.id === notificationId ? { ...n, status: canonicalStatus, read: true } : n))
     );
     try {
-      await setDoc(doc(db, 'notifications', notificationId), { status, read: true }, { merge: true });
+      await setDoc(doc(db, 'notifications', notificationId), { status: canonicalStatus, read: true }, { merge: true });
     } catch (e) {
       console.warn('Firestore update notice for updateNotificationStatus:', e);
     }

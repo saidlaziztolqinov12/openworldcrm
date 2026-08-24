@@ -16,7 +16,14 @@ export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 let dbInstance: Firestore;
 try {
   dbInstance = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
+    // Optional fields must be dropped rather than sent as `undefined`. Firestore
+    // rejects undefined values outright, and because every write in DataContext
+    // swallowed the resulting error the UI reported success while the document
+    // was never written (blank-note salary advances, first-time group enrolment).
+    ignoreUndefinedProperties: true,
+    // Only one long-polling option may be set. Passing both makes
+    // initializeFirestore throw, which silently fell through to the catch below
+    // and meant this whole configuration never applied.
     experimentalAutoDetectLongPolling: true,
   });
 } catch {
