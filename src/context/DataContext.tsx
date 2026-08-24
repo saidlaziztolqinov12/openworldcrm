@@ -57,7 +57,7 @@ interface DataContextType {
   sendNotification: (notif: Omit<InternalNotification, 'id' | 'createdAt' | 'read' | 'readBy'>) => Promise<string>;
   markNotificationAsRead: (id: string, userId?: string) => Promise<void>;
   updateNotificationStatus: (notificationId: string, status: 'accepted' | 'declined' | 'read') => Promise<void>;
-  markAllNotificationsAsRead: (userId?: string) => Promise<void>;
+  markAllNotificationsAsRead: (userId: string | undefined, notificationIds: string[]) => Promise<void>;
   approveTransferRequest: (notificationId: string) => Promise<void>;
   rejectTransferRequest: (notificationId: string) => Promise<void>;
   publishAnnouncement: (title: string, message: string, priority?: 'normal' | 'important' | 'urgent') => Promise<string>;
@@ -767,16 +767,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const markAllNotificationsAsRead = async (userId?: string): Promise<void> => {
-    if (!userId) return;
+  const markAllNotificationsAsRead = async (
+    userId: string | undefined,
+    notificationIds: string[]
+  ): Promise<void> => {
+    if (!userId || notificationIds.length === 0) return;
 
     // `notifications` is the whole centre's collection — recipient scoping only
     // ever existed in the view layer. Marking every document read meant one
     // teacher tapping "mark all read" cleared the director's inbox and every
-    // other teacher's too. Only touch what is addressed to this user.
-    const mine = notifications.filter(
-      (n) => n.recipientId === userId || n.recipientId === 'GLOBAL'
-    );
+    // other teacher's too. The caller passes exactly the ids it is displaying,
+    // so the button always matches the list and the badge it sits next to.
+    const wanted = new Set(notificationIds);
+    const mine = notifications.filter((n) => wanted.has(n.id));
     const pending = mine.filter((n) => !n.read || !(n.readBy || []).includes(userId));
     if (pending.length === 0) return;
 

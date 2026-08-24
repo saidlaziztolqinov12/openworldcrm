@@ -304,7 +304,10 @@ export const InboxView: React.FC<InboxViewProps> = ({ onSelectGroup: _onSelectGr
 
   const handleMarkAllRead = async () => {
     try {
-      await markAllNotificationsAsRead(currentUser?.id);
+      await markAllNotificationsAsRead(
+        currentUser?.id,
+        scopedNotifications.map((n) => n.id)
+      );
       setActionFeedback({
         type: 'success',
         message: 'All marked as read.'
