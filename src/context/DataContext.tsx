@@ -131,7 +131,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!snapshot.empty) {
               const items: User[] = [];
               snapshot.forEach((d) => {
-                const data = d.data() as Omit<User, 'id'>;
+                const { password: _password, ...data } = d.data() as Omit<User, 'id'>;
                 items.push({ id: d.id, ...data });
               });
               setUsers(items);

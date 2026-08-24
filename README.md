@@ -65,7 +65,7 @@ every visitor. Never put a secret behind that prefix.
 | `TELEGRAM_BOT_TOKEN` | server | for parent notifications | Bot token from [@BotFather](https://t.me/BotFather) |
 | `TELEGRAM_WEBHOOK_SECRET` | server | for the parent bot | Shared secret verified on every inbound update |
 | `FIREBASE_SERVICE_ACCOUNT` | server | for push notifications | Service account JSON on one line |
-| `ALLOWED_ORIGIN` | server | recommended | Origin permitted to call the API routes |
+| `ALLOWED_ORIGIN` | server | recommended | Comma-separated origins permitted to call the API routes. Add `https://localhost` (Android) and `capacitor://localhost` (iOS) if you ship the mobile app, or its requests are blocked by CORS |
 | `VITE_API_BASE_URL` | client | for the mobile build | Absolute API origin; relative paths do not resolve inside the Capacitor WebView |
 
 ---
