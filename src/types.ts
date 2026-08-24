@@ -10,7 +10,6 @@ export interface User {
   phone: string;
   title?: string;
   subject?: string;
-  password?: string;
   avatarColor?: string;
   createdAt?: string;
 }

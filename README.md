@@ -8,27 +8,34 @@ React 19 · Vite 6 · TypeScript · Tailwind 4 · Cloud Firestore · Capacitor
 
 ---
 
-## Security status — read this first
+## Security status
 
-The app **does not use Firebase Authentication yet**. It compares passwords in
-the browser and stores them as plain fields on the `users` documents, which
-means `request.auth` is always `null` and `firestore.rules` cannot be tightened
-without locking everyone out. The rules are therefore still fully open.
+Authentication is **Firebase Authentication**. Passwords are owned by Firebase
+and are never stored in Firestore or shipped in the bundle. Profile documents
+are keyed by the Auth UID, and `firestore.rules` decides access from the role on
+`users/{request.auth.uid}` — the client cannot grant itself a role.
 
-**Do not put real student data in this system until that is fixed.**
+Before the first deploy:
 
-The migration, in order:
+1. Firebase Console → Authentication → **enable Email/Password**.
+2. Put a `FIREBASE_SERVICE_ACCOUNT` in your environment (see the table below).
+3. Create the first administrator with `npm run seed:admin` (below). Every other
+   account is created from the admin panel.
+4. Deploy the rules: `firebase deploy --only firestore:rules`.
 
-1. Firebase Console → Authentication → enable Email/Password.
-2. Create an account there for the director and for each teacher.
-3. Replace `loginWithCredentials` in `src/context/AuthContext.tsx` with
-   `signInWithEmailAndPassword`, and read the role from `users/{uid}`.
-4. Delete the `password` field from the `User` type and from every document.
-5. `mv firestore.rules.production firestore.rules && firebase deploy --only firestore:rules`
+Steps 1 and 4 are not optional. Without step 1 nobody can sign in; without step
+4 the database is still whatever is currently live in the console, which may
+still be fully open.
 
-Until then, treat the database as public.
+### Migrating an existing database
 
----
+Profile documents must be keyed by the Auth UID. Any `users/*` document from
+before this change (`admin-1`, `teacher-1755…`) has an id Firebase Auth does not
+know, so it cannot sign in and the rules will not match it. Recreate those
+accounts: run `npm run seed:admin` for the director, then add the teachers from
+the admin panel and delete the old documents. Records that reference a teacher
+by id (`groups.teacherId`, `salary_advances.teacherId`) need repointing at the
+new UIDs.
 
 ## Setup
 
@@ -42,8 +49,8 @@ Node 20 or newer.
 
 ### Creating the first administrator
 
-There is no default account and the app no longer seeds itself. Create the
-first admin deliberately:
+This is the only account that cannot be made from inside the app, because
+creating staff requires an admin to already exist.
 
 ```bash
 ADMIN_EMAIL=director@example.uz ADMIN_PASSWORD='<a strong password>' \
@@ -51,9 +58,14 @@ ADMIN_EMAIL=director@example.uz ADMIN_PASSWORD='<a strong password>' \
   npm run seed:admin
 ```
 
-Further teachers are added from the admin panel.
+It creates the Firebase Auth user and the matching `users/{uid}` profile with
+`role: 'admin'`. Re-running it resets that account's password. Teachers are then
+added from the admin panel, which calls `api/users.ts` — creating an Auth user
+has to happen server-side, since doing it in the browser would sign the
+administrator out and into the account they just created.
 
----
+Anyone can reset their own password from the **Forgot your password?** link on
+the sign-in screen.
 
 ## Environment variables
 
@@ -64,7 +76,7 @@ every visitor. Never put a secret behind that prefix.
 | --- | --- | --- | --- |
 | `TELEGRAM_BOT_TOKEN` | server | for parent notifications | Bot token from [@BotFather](https://t.me/BotFather) |
 | `TELEGRAM_WEBHOOK_SECRET` | server | for the parent bot | Shared secret verified on every inbound update |
-| `FIREBASE_SERVICE_ACCOUNT` | server | for push notifications | Service account JSON on one line |
+| `FIREBASE_SERVICE_ACCOUNT` | server | **yes** | Service account JSON on one line. Needed for staff account creation, push notifications, and verifying ID tokens on every API route |
 | `ALLOWED_ORIGIN` | server | recommended | Comma-separated origins permitted to call the API routes. Add `https://localhost` (Android) and `capacitor://localhost` (iOS) if you ship the mobile app, or its requests are blocked by CORS |
 | `VITE_API_BASE_URL` | client | for the mobile build | Absolute API origin; relative paths do not resolve inside the Capacitor WebView |
 
@@ -133,7 +145,6 @@ never be updated again.
 
 Tracked but not yet addressed:
 
-- Firebase Authentication (above) — everything else depends on it.
 - The nine Firestore listeners in `DataContext` fetch whole collections with no
   `where`/`limit`. At ~300 students this exceeds the Spark free tier's 50,000
   daily reads within a morning.
@@ -142,4 +153,7 @@ Tracked but not yet addressed:
   state, so the last collection to emit wins.
 - No student tuition, payments or debt tracking, and no salary field to check an
   advance against.
+- Data residency: Firestore runs outside Uzbekistan. Storing minors' personal
+  data there may not satisfy local requirements — worth a legal check. A
+  region cannot be changed after a project is created.
 - No tests and no CI.

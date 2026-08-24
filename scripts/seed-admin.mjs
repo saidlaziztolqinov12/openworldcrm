@@ -1,60 +1,82 @@
 /**
- * One-off: create the first administrator account.
+ * One-off: create the first administrator.
  *
- * Passwords used to live as literals in src/lib/seedData.ts, which
- * AuthContext imports — so `admin123` and `teacher123` shipped inside the
- * public JavaScript bundle, readable by anyone. The app also used to seed
- * itself from any visitor's browser. Both are gone; account creation is now a
- * deliberate, local action.
+ * This is the only account that cannot be made from inside the app, because
+ * creating staff requires an admin to already exist. It uses the Admin SDK, so
+ * it needs the same FIREBASE_SERVICE_ACCOUNT the API routes use.
  *
- * Usage (tsx, because this imports firebase.config.ts):
+ * Usage:
  *   ADMIN_EMAIL=director@example.uz ADMIN_PASSWORD='<a strong password>' \
- *     npm run seed:admin
+ *     ADMIN_NAME='Firstname Lastname' npm run seed:admin
  *
- * NOTE: this writes the password as a plain Firestore field, because the app
- * still authenticates in the client. That is a stopgap. Migrating to Firebase
- * Authentication is the required next step — see README, "Security status".
+ * Idempotent: if the email already has an Auth account, its profile document
+ * is created or promoted rather than failing.
  */
-import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
-import { firebaseConfig } from '../src/firebase.config.ts';
+import 'dotenv/config';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
-const email = process.env.ADMIN_EMAIL;
+const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 const password = process.env.ADMIN_PASSWORD;
-const name = process.env.ADMIN_NAME || 'Administrator';
+const name = process.env.ADMIN_NAME?.trim() || 'Administrator';
 
-if (!email || !password) {
-  console.error('Set ADMIN_EMAIL and ADMIN_PASSWORD, then re-run.');
+const fail = (message) => {
+  console.error(message);
   process.exit(1);
-}
-if (password.length < 12) {
-  console.error('Choose a password of at least 12 characters.');
-  process.exit(1);
+};
+
+if (!email || !password) fail('Set ADMIN_EMAIL and ADMIN_PASSWORD, then re-run.');
+if (password.length < 12) fail('Choose a password of at least 12 characters.');
+
+const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+if (!raw) {
+  fail(
+    'FIREBASE_SERVICE_ACCOUNT is not set.\n' +
+      'Firebase Console -> Project settings -> Service accounts -> Generate new private key,\n' +
+      'then put the JSON on a single line in .env.'
+  );
 }
 
-const db = getFirestore(initializeApp(firebaseConfig));
-const ref = doc(db, 'users', 'admin-1');
+if (getApps().length === 0) {
+  initializeApp({ credential: cert(JSON.parse(raw)) });
+}
+const auth = getAuth();
+const db = getFirestore();
 
-if ((await getDoc(ref)).exists()) {
-  console.error('users/admin-1 already exists. Delete it first if you meant to reset it.');
-  process.exit(1);
+let user;
+try {
+  user = await auth.getUserByEmail(email);
+  console.log(`Auth account already exists for ${email} (${user.uid}); updating its password.`);
+  await auth.updateUser(user.uid, { password, displayName: name });
+} catch (error) {
+  if (error?.code !== 'auth/user-not-found') throw error;
+  user = await auth.createUser({ email, password, displayName: name });
+  console.log(`Created Auth account for ${email} (${user.uid}).`);
 }
 
+// The profile document is keyed by the Auth UID: firestore.rules reads
+// users/{request.auth.uid} to decide what this person may do.
 const [firstName, ...rest] = name.split(' ');
-await setDoc(ref, {
-  id: 'admin-1',
-  name,
-  firstName,
-  surname: rest.join(' '),
-  email: email.toLowerCase(),
-  password,
-  role: 'admin',
-  phone: '',
-  title: 'Director',
-  subject: '',
-  avatarColor: 'bg-indigo-600',
-  createdAt: new Date().toISOString()
-});
+const ref = db.collection('users').doc(user.uid);
+const existing = await ref.get();
 
-console.log(`Created users/admin-1 for ${email}.`);
+await ref.set(
+  {
+    id: user.uid,
+    name,
+    firstName,
+    surname: rest.join(' '),
+    email,
+    role: 'admin',
+    phone: existing.data()?.phone || '',
+    title: existing.data()?.title || 'Director',
+    subject: existing.data()?.subject || '',
+    avatarColor: existing.data()?.avatarColor || 'bg-indigo-600',
+    createdAt: existing.data()?.createdAt || new Date().toISOString()
+  },
+  { merge: true }
+);
+
+console.log(`users/${user.uid} is now an administrator. You can sign in as ${email}.`);
 process.exit(0);

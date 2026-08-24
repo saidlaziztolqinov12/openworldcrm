@@ -9,23 +9,38 @@ import {
 } from 'lucide-react';
 
 export const AuthScreen: React.FC = () => {
-  const { loginWithCredentials } = useAuth();
+  const { loginWithCredentials, sendPasswordReset } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setNotice('');
     setIsSubmitting(true);
 
     const result = await loginWithCredentials(email, password);
     if (!result.success) {
       setError(result.message || 'Invalid login or password. Please check your credentials.');
       setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setError('');
+    setNotice('');
+    const result = await sendPasswordReset(email);
+    if (result.success) {
+      // Deliberately not confirming whether the address has an account: that
+      // would let anyone probe which staff emails exist.
+      setNotice('If that address has an account, a reset link is on its way.');
+    } else {
+      setError(result.message || 'Could not send the reset email.');
     }
   };
 
@@ -42,6 +57,12 @@ export const AuthScreen: React.FC = () => {
               Please enter your credentials to continue
             </p>
           </div>
+
+          {notice && (
+            <div className="mb-5 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-medium">
+              {notice}
+            </div>
+          )}
 
           {/* Error Banner */}
           {error && (
@@ -108,6 +129,14 @@ export const AuthScreen: React.FC = () => {
               className="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold py-2.5 px-4 rounded-xl text-sm shadow-sm transition-all flex items-center justify-center cursor-pointer disabled:opacity-50"
             >
               Sign In
+            </button>
+
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              className="w-full text-xs text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer"
+            >
+              Forgot your password?
             </button>
           </form>
         </div>

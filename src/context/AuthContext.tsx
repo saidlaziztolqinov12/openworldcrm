@@ -1,8 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
-import { setPersistence, browserLocalPersistence } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updatePassword,
+  signOut
+} from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
-import { collection, doc, getDocs, limit, query, updateDoc, where } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { Capacitor } from '@capacitor/core';
 
 interface AuthContextType {
@@ -11,57 +19,90 @@ interface AuthContextType {
   isAdmin: boolean;
   isTeacher: boolean;
   isLoading: boolean;
-  loginAs: (user: User) => void;
   loginWithCredentials: (
     email: string,
     password: string
   ) => Promise<{ success: boolean; message?: string }>;
-  logout: () => void;
+  sendPasswordReset: (email: string) => Promise<{ success: boolean; message?: string }>;
+  changePassword: (newPassword: string) => Promise<{ success: boolean; message?: string }>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_USER_KEY = 'openworld_active_user';
+/**
+ * Turn a Firebase Auth error into something a person can act on. The raw
+ * codes ("auth/invalid-credential") are not useful to a teacher.
+ */
+const describeAuthError = (code: string): string => {
+  switch (code) {
+    case 'auth/invalid-email':
+      return 'That email address is not valid.';
+    case 'auth/user-disabled':
+      return 'This account has been disabled. Ask the director to re-enable it.';
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return 'Incorrect email or password.';
+    case 'auth/too-many-requests':
+      return 'Too many attempts. Wait a few minutes and try again.';
+    case 'auth/network-request-failed':
+      return 'Could not reach the server. Check your connection.';
+    case 'auth/configuration-not-found':
+    case 'auth/operation-not-allowed':
+      // The single most likely first-deploy mistake, and impossible to guess
+      // from Firebase's own wording ("CONFIGURATION_NOT_FOUND").
+      return 'Email sign-in is not enabled for this project yet. Enable Authentication → Email/Password in the Firebase Console.';
+    case 'auth/weak-password':
+      return 'Choose a longer password (at least 8 characters).';
+    case 'auth/requires-recent-login':
+      return 'For security, sign out and back in before changing your password.';
+    default:
+      return 'Could not complete the request. Please try again.';
+  }
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    try {
-      sessionStorage.removeItem('edupulse_active_user');
-      localStorage.removeItem('edupulse_active_user');
-      sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-
-      const saved = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
-      if (saved) {
-        return JSON.parse(saved);
-      }
-    } catch {
-      // ignore
-    }
-    return null;
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // Set Firebase auth persistence to local storage
+    // Keep the session across reloads. Firebase Auth owns it now — the app no
+    // longer stores a user object (or a password) in localStorage, where the
+    // role could simply be edited to 'admin'.
     setPersistence(auth, browserLocalPersistence).catch((err) => {
       console.warn('Firebase persistence warning:', err);
     });
 
-    // Simulate short check for auth state restoration
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 150);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        setCurrentUser(null);
+        setIsLoading(false);
+        return;
+      }
+      try {
+        // The profile — including the role — is read from Firestore, keyed by
+        // the Auth UID. Firestore rules check the same document, so the client
+        // cannot grant itself a role.
+        const snapshot = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (!snapshot.exists()) {
+          console.error('Signed-in user has no profile document:', firebaseUser.uid);
+          await signOut(auth);
+          setCurrentUser(null);
+          return;
+        }
+        const data = snapshot.data() as Omit<User, 'id'>;
+        setCurrentUser({ ...data, id: firebaseUser.uid, email: firebaseUser.email || data.email });
+      } catch (error) {
+        console.error('Could not load the signed-in user profile:', error);
+        setCurrentUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    });
 
-    return () => clearTimeout(timer);
+    return unsubscribe;
   }, []);
-
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-    }
-  }, [currentUser]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -76,13 +117,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             PushNotifications.register();
           }
         });
-        
+
         PushNotifications.addListener('registration', async (token) => {
-          if (token && token.value && currentUser && currentUser.id) {
+          if (token?.value && currentUser?.id) {
             try {
               await updateDoc(doc(db, 'users', currentUser.id), {
                 fcmToken: token.value,
-                fcmTokenUpdatedAt: new Date()
+                fcmTokenUpdatedAt: new Date().toISOString()
               });
             } catch (e) {
               console.warn('Failed to save FCM token to Firestore:', e);
@@ -100,106 +141,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }).catch((err) => {
         console.warn('Failed to load PushNotifications plugin:', err);
       });
-    } else {
-      console.log('Push notifications registration skipped: running on web browser.');
     }
 
     return () => {
-      if (regListener && typeof regListener.remove === 'function') {
-        regListener.remove();
-      }
-      if (actionListener && typeof actionListener.remove === 'function') {
-        actionListener.remove();
-      }
+      if (regListener?.remove) regListener.remove();
+      if (actionListener?.remove) actionListener.remove();
     };
-  }, [currentUser]);
-
-  const loginAs = (user: User) => {
-    const sanitizedUser = { ...user };
-    setCurrentUser(sanitizedUser);
-    localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(sanitizedUser));
-  };
+  }, [currentUser?.id]);
 
   const loginWithCredentials = async (
     email: string,
     password: string
   ): Promise<{ success: boolean; message?: string }> => {
     const trimmedEmail = email.trim().toLowerCase();
-    const trimmedPassword = password.trim();
-
-    if (!trimmedEmail || !trimmedPassword) {
+    if (!trimmedEmail || !password) {
       return { success: false, message: 'Please enter both email and password.' };
     }
-
-    // Look up the single matching account instead of relying on the whole
-    // users collection having been streamed to the client. DataContext no
-    // longer subscribes to anything before sign-in, and the login screen has
-    // no business holding every staff record anyway.
-    //
-    // Seed data deliberately takes no part in this: INITIAL_USERS used to be
-    // appended to the candidate list, so a teacher deleted in the admin panel
-    // could still sign in forever.
-    let matchedUser: User | null = null;
     try {
-      const snapshot = await getDocs(
-        query(collection(db, 'users'), where('email', '==', trimmedEmail), limit(1))
-      );
-      if (!snapshot.empty) {
-        const found = snapshot.docs[0];
-        matchedUser = { id: found.id, ...(found.data() as Omit<User, 'id'>) };
-      }
-    } catch (e) {
-      console.error('Could not reach the accounts collection:', e);
-      return {
-        success: false,
-        message: 'Could not reach the server. Check your connection and try again.'
-      };
+      // onAuthStateChanged above loads the profile and sets currentUser.
+      await signInWithEmailAndPassword(auth, trimmedEmail, password);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, message: describeAuthError(error?.code) };
     }
-
-    if (!matchedUser) {
-      return {
-        success: false,
-        message: 'No account found with this email address.'
-      };
-    }
-
-    // No fallback password: a user document without a password field must not
-    // authenticate on a shared default.
-    if (!matchedUser.password || trimmedPassword !== matchedUser.password) {
-      return {
-        success: false,
-        message: 'Incorrect password. Please verify your credentials and try again.'
-      };
-    }
-
-    setCurrentUser(matchedUser);
-    localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(matchedUser));
-    return { success: true };
   };
 
-  const logout = () => {
+  const sendPasswordReset = async (
+    email: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) {
+      return { success: false, message: 'Enter your email address first.' };
+    }
+    try {
+      await sendPasswordResetEmail(auth, trimmedEmail);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, message: describeAuthError(error?.code) };
+    }
+  };
+
+  const changePassword = async (
+    newPassword: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (!auth.currentUser) return { success: false, message: 'You are not signed in.' };
+    if (newPassword.length < 8) {
+      return { success: false, message: 'Choose a password of at least 8 characters.' };
+    }
+    try {
+      await updatePassword(auth.currentUser, newPassword);
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, message: describeAuthError(error?.code) };
+    }
+  };
+
+  const logout = async (): Promise<void> => {
+    // Clear the FCM token so notifications stop following a device that has
+    // been handed to somebody else.
+    if (currentUser?.id) {
+      try {
+        await updateDoc(doc(db, 'users', currentUser.id), { fcmToken: null });
+      } catch {
+        // Signing out matters more than tidying the token.
+      }
+    }
+    await signOut(auth);
     setCurrentUser(null);
-    sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-    localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-    sessionStorage.removeItem('edupulse_active_user');
-    localStorage.removeItem('edupulse_active_user');
   };
 
   const role = currentUser?.role || null;
-  const isAdmin = role === 'admin';
-  const isTeacher = role === 'teacher';
 
   return (
     <AuthContext.Provider
       value={{
         currentUser,
         role,
-        isAdmin,
-        isTeacher,
+        isAdmin: role === 'admin',
+        isTeacher: role === 'teacher',
         isLoading,
-        loginAs,
         loginWithCredentials,
-        logout,
+        sendPasswordReset,
+        changePassword,
+        logout
       }}
     >
       {children}

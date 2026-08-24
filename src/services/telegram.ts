@@ -1,4 +1,4 @@
-import { apiUrl } from '../lib/apiBase';
+import { apiFetch } from '../lib/apiClient';
 
 /**
  * Send a Telegram message through this app's own API route.
@@ -10,9 +10,8 @@ import { apiUrl } from '../lib/apiBase';
  */
 export const sendTelegramMessage = async (chatId: string | number, text: string): Promise<void> => {
   if (!chatId) return;
-  const response = await fetch(apiUrl('/api/send-telegram'), {
+  const response = await apiFetch('/api/send-telegram', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chatId, text })
   });
   if (!response.ok) {

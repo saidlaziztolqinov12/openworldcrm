@@ -25,7 +25,7 @@ import { useAuth } from './AuthContext';
 import { generateUniqueStudentId } from '../utils/studentId';
 import { todayLocalDateString } from '../utils/date';
 import { sendTelegramMessage } from '../services/telegram';
-import { apiUrl } from '../lib/apiBase';
+import { apiFetch, apiJson } from '../lib/apiClient';
 import { formatAttendanceNotification } from '../lib/sms';
 
 interface DataContextType {
@@ -51,7 +51,7 @@ interface DataContextType {
   deleteStudent: (id: string) => Promise<void>;
   saveAttendanceRecord: (record: Omit<AttendanceRecord, 'id' | 'createdAt'> & { id?: string }) => Promise<string>;
   deleteAttendanceRecord: (id: string) => Promise<void>;
-  addTeacher: (teacher: Omit<User, 'id' | 'createdAt'>) => Promise<string>;
+  addTeacher: (teacher: Omit<User, 'id' | 'createdAt'>, password: string) => Promise<string>;
   updateTeacher: (id: string, teacher: Partial<User>) => Promise<void>;
   deleteTeacher: (id: string) => Promise<void>;
   migrateMissingStudentIds: () => Promise<number>;
@@ -131,8 +131,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!snapshot.empty) {
               const items: User[] = [];
               snapshot.forEach((d) => {
-                const { password: _password, ...data } = d.data() as Omit<User, 'id'>;
-                items.push({ id: d.id, ...data });
+                // Strip any password left over from before Firebase Auth: the
+                // field is no longer written, but old documents may still carry one.
+                const { password: _legacyPassword, ...data } = d.data() as Record<string, unknown>;
+                items.push({ id: d.id, ...(data as Omit<User, 'id'>) });
               });
               setUsers(items);
             }
@@ -671,24 +673,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const addTeacher = async (teacherData: Omit<User, 'id' | 'createdAt'>): Promise<string> => {
-    const id = `teacher-${Date.now()}`;
-    const newTeacher: User = {
-      ...teacherData,
-      id,
-      role: 'teacher',
-      avatarColor: teacherData.avatarColor || 'bg-indigo-600',
-      createdAt: new Date().toISOString()
-    };
-
-    setUsers((prev) => [...prev, newTeacher]);
-    try {
-      await setDoc(doc(db, 'users', id), newTeacher);
-    } catch (e) {
-      console.error('Firestore write notice for addTeacher:', e);
-      throw e;
-    }
-    return id;
+  const addTeacher = async (
+    teacherData: Omit<User, 'id' | 'createdAt'>,
+    password: string
+  ): Promise<string> => {
+    // The Auth account and the profile document are created together on the
+    // server; the profile is keyed by the new Auth UID so firestore.rules can
+    // look up the caller's role. The users listener picks the new record up.
+    const { uid } = await apiJson<{ uid: string }>('/api/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: teacherData.email,
+        password,
+        profile: {
+          ...teacherData,
+          avatarColor: teacherData.avatarColor || 'bg-indigo-600'
+        }
+      })
+    });
+    return uid;
   };
 
   const updateTeacher = async (id: string, teacherData: Partial<User>): Promise<void> => {
@@ -702,13 +705,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteTeacher = async (id: string): Promise<void> => {
+    // Deleting only the profile would leave a working sign-in credential
+    // behind, so the Auth user goes first — on the server.
+    await apiJson(`/api/users?uid=${encodeURIComponent(id)}`, { method: 'DELETE' });
     setUsers((prev) => prev.filter((u) => u.id !== id));
-    try {
-      await deleteDoc(doc(db, 'users', id));
-    } catch (e) {
-      console.error('Firestore delete notice for deleteTeacher:', e);
-      throw e;
-    }
   };
 
   // Notification methods
@@ -728,11 +728,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await setDoc(doc(db, 'notifications', id), newNotif);
 
-      // Trigger push notification via /api/send-push
-      if (notifData.recipientId) {
-        await fetch(apiUrl('/api/send-push'), {
+      // Trigger push notification via /api/send-push.
+      // 'GLOBAL' is not a user document, so a broadcast has no single device to
+      // target and the route would reject it; skip rather than log an error.
+      if (notifData.recipientId && notifData.recipientId !== 'GLOBAL') {
+        await apiFetch('/api/send-push', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             recipientUserId: notifData.recipientId,
             title: "🔔 New Request Received",

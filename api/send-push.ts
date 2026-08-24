@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors } from './_cors';
+import { authenticate } from './_auth';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 import { initializeApp as initClientApp, getApps as getClientApps } from 'firebase/app';
@@ -24,6 +25,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  // Only signed-in staff may dispatch a notification to somebody's device.
+  const caller = await authenticate(req);
+  if (!caller) return res.status(401).json({ error: 'Sign in required' });
 
   try {
     const { recipientUserId, token, fcmToken, title, body, data } = req.body || {};
