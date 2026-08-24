@@ -19,20 +19,8 @@ import {
   updateDoc,
   deleteDoc,
   query,
-  getDocs,
-  writeBatch,
-  getDoc
+  writeBatch
 } from 'firebase/firestore';
-import {
-  INITIAL_USERS,
-  INITIAL_GROUPS,
-  INITIAL_STUDENTS,
-  INITIAL_ATTENDANCE,
-  INITIAL_NOTIFICATIONS,
-  INITIAL_GROUP_ACTIVITY_LOGS,
-  INITIAL_SALARY_ADVANCES,
-  seedInitialFirestoreData
-} from '../lib/seedData';
 import { useAuth } from './AuthContext';
 import { generateUniqueStudentId } from '../utils/studentId';
 import { sendTelegramMessage } from '../services/telegram';
