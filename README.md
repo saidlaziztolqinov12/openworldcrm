@@ -48,7 +48,7 @@ first admin deliberately:
 ```bash
 ADMIN_EMAIL=director@example.uz ADMIN_PASSWORD='<a strong password>' \
   ADMIN_NAME='Firstname Lastname' \
-  npx tsx scripts/seed-admin.mjs
+  npm run seed:admin
 ```
 
 Further teachers are added from the admin panel.

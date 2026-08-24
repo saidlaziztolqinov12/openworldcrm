@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * One-off: create the first administrator account.
  *
@@ -8,9 +7,9 @@
  * itself from any visitor's browser. Both are gone; account creation is now a
  * deliberate, local action.
  *
- * Usage:
+ * Usage (tsx, because this imports firebase.config.ts):
  *   ADMIN_EMAIL=director@example.uz ADMIN_PASSWORD='<a strong password>' \
- *     node scripts/seed-admin.mjs
+ *     npm run seed:admin
  *
  * NOTE: this writes the password as a plain Firestore field, because the app
  * still authenticates in the client. That is a stopgap. Migrating to Firebase
