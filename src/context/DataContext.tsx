@@ -20,6 +20,7 @@ import {
   deleteDoc,
   query,
   getDocs,
+  writeBatch,
   getDoc
 } from 'firebase/firestore';
 import {
@@ -779,26 +780,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const markAllNotificationsAsRead = async (userId?: string): Promise<void> => {
+    if (!userId) return;
+
+    // `notifications` is the whole centre's collection — recipient scoping only
+    // ever existed in the view layer. Marking every document read meant one
+    // teacher tapping "mark all read" cleared the director's inbox and every
+    // other teacher's too. Only touch what is addressed to this user.
+    const mine = notifications.filter(
+      (n) => n.recipientId === userId || n.recipientId === 'GLOBAL'
+    );
+    const pending = mine.filter((n) => !n.read || !(n.readBy || []).includes(userId));
+    if (pending.length === 0) return;
+
+    const nextReadBy = (n: InternalNotification) =>
+      (n.readBy || []).includes(userId) ? (n.readBy as string[]) : [...(n.readBy || []), userId];
+
     setNotifications((prev) =>
-      prev.map((n) => {
-        const readBy = n.readBy ? [...n.readBy] : [];
-        if (userId && !readBy.includes(userId)) {
-          readBy.push(userId);
-        }
-        return { ...n, read: true, readBy };
-      })
+      prev.map((n) =>
+        pending.some((p) => p.id === n.id) ? { ...n, read: true, readBy: nextReadBy(n) } : n
+      )
     );
 
     try {
-      notifications.forEach(async (n) => {
-        const readBy = n.readBy ? [...n.readBy] : [];
-        if (userId && !readBy.includes(userId)) {
-          readBy.push(userId);
-        }
-        await setDoc(doc(db, 'notifications', n.id), { read: true, readBy }, { merge: true });
-      });
+      // One batch instead of N un-awaited writes. The previous
+      // `forEach(async ...)` never awaited, so the try/catch could not catch
+      // anything and failures surfaced as unhandled rejections.
+      const batch = writeBatch(db);
+      for (const n of pending) {
+        batch.set(
+          doc(db, 'notifications', n.id),
+          { read: true, readBy: nextReadBy(n) },
+          { merge: true }
+        );
+      }
+      await batch.commit();
     } catch (e) {
-      console.warn('Firestore update notice for markAllNotificationsAsRead:', e);
+      console.error('Failed to mark notifications as read:', e);
+      throw e;
     }
   };
 

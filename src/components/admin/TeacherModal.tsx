@@ -291,7 +291,7 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
                 required={!teacherToEdit}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="e.g. teacher123"
+                placeholder="Choose a strong password"
                 className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-800 dark:text-white placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors"
               />
               <button

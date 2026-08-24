@@ -1,4 +1,20 @@
 rules_version = '2';
+
+// ---------------------------------------------------------------------------
+// WARNING — THESE RULES ALLOW ANYONE ON THE INTERNET TO READ AND WRITE
+// EVERY DOCUMENT, INCLUDING STUDENT NAMES, PARENT PHONE NUMBERS AND PAYROLL.
+//
+// They are left open only because the app does not authenticate with Firebase
+// yet: it compares passwords in the client, so `request.auth` is always null
+// and any rule referencing it would lock everyone out.
+//
+// Do not put real student data behind these rules. The fix is to migrate to
+// Firebase Authentication (see README, "Security status") and then replace
+// this file with firestore.rules.production and deploy it:
+//
+//   firebase deploy --only firestore:rules
+// ---------------------------------------------------------------------------
+
 service cloud.firestore {
   match /databases/{database}/documents {
     match /{document=**} {

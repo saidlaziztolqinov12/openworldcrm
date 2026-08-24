@@ -147,6 +147,11 @@ export const InboxView: React.FC<InboxViewProps> = ({ onSelectGroup: _onSelectGr
     return scopedNotifications
       .filter((n) => {
         if (categoryFilter === 'unread') return !n.read;
+        // The 'pending' and 'read' tabs were added to the UI (and to this
+        // union type) but never given a branch here, so selecting either one
+        // highlighted the tab and showed the unfiltered list.
+        if (categoryFilter === 'pending') return isPendingStatus(n.status);
+        if (categoryFilter === 'read') return !!n.read;
         if (categoryFilter === 'transfer_requests') return isTransferType(n.type);
         if (categoryFilter === 'announcements') return isAnnouncementType(n.type);
         return true;

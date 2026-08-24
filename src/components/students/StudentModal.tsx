@@ -26,7 +26,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
 
   const [firstName, setFirstName] = useState('');
   const [surname, setSurname] = useState('');
-  const [parentPhone, setParentPhone] = useState('+998901234567');
+  const [parentPhone, setParentPhone] = useState('');
   const [birthDate, setBirthDate] = useState('2009-05-15');
   const [notes, setNotes] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState(groupId);
@@ -47,14 +47,14 @@ export const StudentModal: React.FC<StudentModalProps> = ({
     if (studentToEdit) {
       setFirstName(studentToEdit.firstName || '');
       setSurname(studentToEdit.surname || '');
-      setParentPhone(studentToEdit.parentPhone || '+998901234567');
+      setParentPhone(studentToEdit.parentPhone || '');
       setBirthDate(studentToEdit.birthDate || '2009-05-15');
       setNotes(studentToEdit.notes || '');
       setSelectedGroupId(studentToEdit.groupId || groupId || availableGroups[0]?.id || '');
     } else {
       setFirstName('');
       setSurname('');
-      setParentPhone('+998901234567');
+      setParentPhone('');
       setBirthDate('2009-05-15');
       setNotes('');
       setSelectedGroupId(groupId || availableGroups[0]?.id || '');
@@ -73,9 +73,16 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   if (!isOpen) return null;
 
   const executeSave = async () => {
+    const cleanPhone = parentPhone.trim();
+    // The bot matches a parent by the last 9 digits of their number, so an
+    // incomplete number silently attaches the wrong family — or every family
+    // that shares a placeholder. Require the full national number.
+    if (cleanPhone.replace(/\D/g, '').length < 12) {
+      setError("Enter the parent's full phone number (9 digits after +998).");
+      return;
+    }
     setLoading(true);
     setError('');
-    const cleanPhone = parentPhone.trim();
     try {
       if (studentToEdit) {
         // If group changed, ensure transfer metadata & isolated history are preserved
