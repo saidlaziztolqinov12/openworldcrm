@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
-import { INITIAL_USERS } from '../lib/seedData';
 import { setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, limit, query, updateDoc, where } from 'firebase/firestore';
 import { Capacitor } from '@capacitor/core';
 
 interface AuthContextType {
@@ -15,9 +14,8 @@ interface AuthContextType {
   loginAs: (user: User) => void;
   loginWithCredentials: (
     email: string,
-    password: string,
-    registeredUsers?: User[]
-  ) => { success: boolean; message?: string };
+    password: string
+  ) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
 }
 
@@ -122,11 +120,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(sanitizedUser));
   };
 
-  const loginWithCredentials = (
+  const loginWithCredentials = async (
     email: string,
-    password: string,
-    registeredUsers: User[] = []
-  ): { success: boolean; message?: string } => {
+    password: string
+  ): Promise<{ success: boolean; message?: string }> => {
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedPassword = password.trim();
 
@@ -134,21 +131,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: 'Please enter both email and password.' };
     }
 
-    // Accounts come from Firestore. INITIAL_USERS is seed data only and must
-    // never take part in authentication: leaving it here meant a teacher
-    // deleted in the admin panel could still sign in forever.
-    const combinedUsers = registeredUsers.length > 0 ? registeredUsers : INITIAL_USERS;
-    const matchedUser = combinedUsers.find(
-      (u) =>
-        u.email.toLowerCase() === trimmedEmail ||
-        u.name.toLowerCase() === trimmedEmail ||
-        (u.firstName && u.firstName.toLowerCase() === trimmedEmail)
-    );
+    // Look up the single matching account instead of relying on the whole
+    // users collection having been streamed to the client. DataContext no
+    // longer subscribes to anything before sign-in, and the login screen has
+    // no business holding every staff record anyway.
+    //
+    // Seed data deliberately takes no part in this: INITIAL_USERS used to be
+    // appended to the candidate list, so a teacher deleted in the admin panel
+    // could still sign in forever.
+    let matchedUser: User | null = null;
+    try {
+      const snapshot = await getDocs(
+        query(collection(db, 'users'), where('email', '==', trimmedEmail), limit(1))
+      );
+      if (!snapshot.empty) {
+        const found = snapshot.docs[0];
+        matchedUser = { id: found.id, ...(found.data() as Omit<User, 'id'>) };
+      }
+    } catch (e) {
+      console.error('Could not reach the accounts collection:', e);
+      return {
+        success: false,
+        message: 'Could not reach the server. Check your connection and try again.'
+      };
+    }
 
     if (!matchedUser) {
       return {
         success: false,
-        message: 'No account found with this login. Please check your spelling.'
+        message: 'No account found with this email address.'
       };
     }
 
@@ -161,10 +172,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    const sanitizedUser = { ...matchedUser };
-
-    setCurrentUser(sanitizedUser);
-    localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(sanitizedUser));
+    setCurrentUser(matchedUser);
+    localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(matchedUser));
     return { success: true };
   };
 

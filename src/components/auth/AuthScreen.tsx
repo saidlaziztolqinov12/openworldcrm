@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useData } from '../../context/DataContext';
 import {
   User as UserIcon,
   Lock,
@@ -11,7 +10,6 @@ import {
 
 export const AuthScreen: React.FC = () => {
   const { loginWithCredentials } = useAuth();
-  const { users } = useData();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,12 +17,12 @@ export const AuthScreen: React.FC = () => {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsSubmitting(true);
 
-    const result = loginWithCredentials(email, password, users);
+    const result = await loginWithCredentials(email, password);
     if (!result.success) {
       setError(result.message || 'Invalid login or password. Please check your credentials.');
       setIsSubmitting(false);
