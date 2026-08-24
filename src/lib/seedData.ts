@@ -749,17 +749,9 @@ export async function seedInitialFirestoreData(db: Firestore, force = false): Pr
     //   batch.set(notifRef, notif);
     // });
 
-    // 6. Group Activity Logs (group_logs)
-    INITIAL_GROUP_ACTIVITY_LOGS.forEach((log) => {
-      const logRef = doc(db, 'group_logs', log.id);
-      batch.set(logRef, log);
-    });
-
-    // 7. Salary Advances
-    INITIAL_SALARY_ADVANCES.forEach((adv) => {
-      const advRef = doc(db, 'salary_advances', adv.id);
-      batch.set(advRef, adv);
-    });
+    // 6. Group activity logs and 7. salary advances are intentionally NOT
+    //    seeded. They previously wrote invented audit entries and four
+    //    fabricated advances (8,200,000 UZS) into the live ledger.
 
     await batch.commit();
     return true;

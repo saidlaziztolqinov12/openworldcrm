@@ -35,6 +35,7 @@ import {
 import { useAuth } from './AuthContext';
 import { generateUniqueStudentId } from '../utils/studentId';
 import { sendTelegramMessage } from '../services/telegram';
+import { apiUrl } from '../lib/apiBase';
 import { formatAttendanceNotification } from '../lib/sms';
 
 interface DataContextType {
@@ -75,7 +76,6 @@ interface DataContextType {
   addSalaryAdvance: (advance: Omit<SalaryAdvance, 'id' | 'createdAt'>) => Promise<string>;
   updateSalaryAdvance: (id: string, advance: Partial<SalaryAdvance>) => Promise<void>;
   deleteSalaryAdvance: (id: string) => Promise<void>;
-  resetDatabaseToDefaults: () => Promise<void>;
   getGroupStudents: (groupId: string) => Student[];
   getGroupAttendanceRecords: (groupId: string) => AttendanceRecord[];
   getGroupActivityLogs: (groupId: string) => GroupActivityLog[];
@@ -88,18 +88,25 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAuth();
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [notifications, setNotifications] = useState<InternalNotification[]>([]);
-  const [groupActivityLogs, setGroupActivityLogs] = useState<GroupActivityLog[]>(INITIAL_GROUP_ACTIVITY_LOGS);
-  const [salaryAdvances, setSalaryAdvances] = useState<SalaryAdvance[]>(INITIAL_SALARY_ADVANCES);
+  const [groupActivityLogs, setGroupActivityLogs] = useState<GroupActivityLog[]>([]);
+  const [salaryAdvances, setSalaryAdvances] = useState<SalaryAdvance[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isOnline, setIsOnline] = useState<boolean>(true);
 
-  // Initialize and listen to Firestore in real-time
+  // Initialize and listen to Firestore in real-time.
+  // Gated on currentUser: DataProvider sits above the login gate in App.tsx, so
+  // an ungated effect subscribed every collection before anyone signed in.
   useEffect(() => {
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
+
     let unsubscribeUsers = () => {};
     let unsubscribeGroups = () => {};
     let unsubscribeStudents = () => {};
@@ -113,15 +120,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const setupListeners = async () => {
       try {
-        // Auto-seed Firestore on initial connect if users collection is empty
-        try {
-          const snapshot = await getDocs(collection(db, 'users'));
-          if (snapshot.empty) {
-            await seedInitialFirestoreData(db, false);
-          }
-        } catch (e) {
-          console.warn('Firestore initial connection/seed notice:', e);
-        }
 
         // 1. Live Sync: users collection
         unsubscribeUsers = onSnapshot(
@@ -131,18 +129,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const items: User[] = [];
               snapshot.forEach((d) => {
                 const data = d.data() as Omit<User, 'id'>;
-                let u: User = { id: d.id, ...data };
-                if (u.id === 'admin-1' || u.role === 'admin' || (u.name && u.name.includes('Sarah'))) {
-                  u = {
-                    ...u,
-                    name: 'MuhammadIso Ermatov',
-                    firstName: 'MuhammadIso',
-                    surname: 'Ermatov',
-                    title: 'Director',
-                    role: 'admin'
-                  };
-                }
-                items.push(u);
+                items.push({ id: d.id, ...data });
               });
               setUsers(items);
             }
@@ -198,11 +185,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           (snapshot) => {
             const items: InternalNotification[] = [];
             snapshot.forEach((d) => {
-              const notif = { id: d.id, ...(d.data() as Omit<InternalNotification, 'id'>) };
-              if (notif.senderName && notif.senderName.includes('Sarah')) {
-                notif.senderName = notif.senderName.replace(/Sarah\s*Jenkins/gi, 'MuhammadIso Ermatov');
-              }
-              items.push(notif);
+              items.push({ id: d.id, ...(d.data() as Omit<InternalNotification, 'id'>) });
             });
             // Sort newest first
             items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -222,11 +205,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!snapshot.empty) {
               const items: GroupActivityLog[] = [];
               snapshot.forEach((d) => {
-                const log = { id: d.id, ...(d.data() as Omit<GroupActivityLog, 'id'>) };
-                if (log.actorName && log.actorName.includes('Sarah')) {
-                  log.actorName = log.actorName.replace(/Sarah\s*Jenkins/gi, 'MuhammadIso Ermatov');
-                }
-                items.push(log);
+                items.push({ id: d.id, ...(d.data() as Omit<GroupActivityLog, 'id'>) });
               });
               items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
               setGroupActivityLogs(items);
@@ -271,7 +250,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubscribeLogs();
       unsubscribeSalaryAdvances();
     };
-  }, []);
+  }, [currentUser]);
 
   const teachers = users.filter((u) => u.role === 'teacher');
 
@@ -739,7 +718,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Trigger push notification via /api/send-push
       if (notifData.recipientId) {
-        await fetch('/api/send-push', {
+        await fetch(apiUrl('/api/send-push'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -978,7 +957,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       recipientId: 'GLOBAL',
       recipientRole: 'all',
       senderId: 'admin-broadcast',
-      senderName: currentUser?.name || 'MuhammadIso Ermatov (Director)',
+      senderName: currentUser?.name || 'Administration',
       senderRole: 'admin',
       type: 'ANNOUNCEMENT',
       title,
@@ -988,21 +967,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const resetDatabaseToDefaults = async (): Promise<void> => {
-    setLoading(true);
-    setUsers(INITIAL_USERS);
-    setGroups(INITIAL_GROUPS);
-    setStudents(INITIAL_STUDENTS);
-    setAttendanceRecords(INITIAL_ATTENDANCE);
-    setNotifications(INITIAL_NOTIFICATIONS);
-    setGroupActivityLogs(INITIAL_GROUP_ACTIVITY_LOGS);
-    try {
-      await seedInitialFirestoreData(db, true);
-    } catch (e) {
-      console.warn('Reset database notice:', e);
-    }
-    setLoading(false);
-  };
 
   // Strictly active currently enrolled students in this group
   const getGroupStudents = useCallback((groupId: string): Student[] => {
@@ -1121,7 +1085,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addSalaryAdvance,
         updateSalaryAdvance,
         deleteSalaryAdvance,
-        resetDatabaseToDefaults,
         getGroupStudents,
         getGroupAttendanceRecords,
         getGroupActivityLogs,

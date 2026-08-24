@@ -35,14 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const saved = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && (parsed.role === 'admin' || parsed.id === 'admin-1' || (parsed.name && parsed.name.includes('Sarah')))) {
-          parsed.name = 'MuhammadIso Ermatov';
-          parsed.firstName = 'MuhammadIso';
-          parsed.surname = 'Ermatov';
-          parsed.title = 'Director';
-        }
-        return parsed;
+        return JSON.parse(saved);
       }
     } catch {
       // ignore
@@ -125,12 +118,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginAs = (user: User) => {
     const sanitizedUser = { ...user };
-    if (sanitizedUser.role === 'admin' || sanitizedUser.id === 'admin-1' || (sanitizedUser.name && sanitizedUser.name.includes('Sarah'))) {
-      sanitizedUser.name = 'MuhammadIso Ermatov';
-      sanitizedUser.firstName = 'MuhammadIso';
-      sanitizedUser.surname = 'Ermatov';
-      sanitizedUser.title = 'Director';
-    }
     setCurrentUser(sanitizedUser);
     localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(sanitizedUser));
   };
@@ -147,25 +134,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: 'Please enter both email and password.' };
     }
 
-    if (
-      (trimmedEmail === 'admin@center.com' || trimmedEmail === 'admin' || trimmedEmail === 'director' || trimmedEmail === 'admin@openworld.edu' || trimmedEmail === 'admin@edupulse.edu') &&
-      trimmedPassword === 'admin123'
-    ) {
-      const foundAdmin = registeredUsers.find((u) => u.role === 'admin');
-      const adminUser: User = {
-        ...(foundAdmin || INITIAL_USERS[0]),
-        name: 'MuhammadIso Ermatov',
-        firstName: 'MuhammadIso',
-        surname: 'Ermatov',
-        title: 'Director',
-        role: 'admin'
-      };
-      setCurrentUser(adminUser);
-      localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(adminUser));
-      return { success: true };
-    }
-
-    const combinedUsers = [...registeredUsers, ...INITIAL_USERS];
+    // Accounts come from Firestore. INITIAL_USERS is seed data only and must
+    // never take part in authentication: leaving it here meant a teacher
+    // deleted in the admin panel could still sign in forever.
+    const combinedUsers = registeredUsers.length > 0 ? registeredUsers : INITIAL_USERS;
     const matchedUser = combinedUsers.find(
       (u) =>
         u.email.toLowerCase() === trimmedEmail ||
@@ -180,8 +152,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    const validPassword = matchedUser.password || 'teacher123';
-    if (trimmedPassword !== validPassword) {
+    // No fallback password: a user document without a password field must not
+    // authenticate on a shared default.
+    if (!matchedUser.password || trimmedPassword !== matchedUser.password) {
       return {
         success: false,
         message: 'Incorrect password. Please verify your credentials and try again.'
@@ -189,12 +162,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const sanitizedUser = { ...matchedUser };
-    if (sanitizedUser.role === 'admin' || sanitizedUser.id === 'admin-1' || (sanitizedUser.name && sanitizedUser.name.includes('Sarah'))) {
-      sanitizedUser.name = 'MuhammadIso Ermatov';
-      sanitizedUser.firstName = 'MuhammadIso';
-      sanitizedUser.surname = 'Ermatov';
-      sanitizedUser.title = 'Director';
-    }
 
     setCurrentUser(sanitizedUser);
     localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(sanitizedUser));

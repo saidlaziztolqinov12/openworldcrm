@@ -19,7 +19,7 @@ const db = getFirestore(clientApp);
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS Headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
@@ -51,16 +51,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Initialize Firebase Admin once
     if (!getApps().length) {
       const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT;
-      if (rawKey) {
-        const serviceAccount = typeof rawKey === 'string' ? JSON.parse(rawKey) : rawKey;
-        initializeApp({
-          credential: cert(serviceAccount)
-        });
-      } else {
-        initializeApp({
-          projectId: 'open-world-platform'
-        });
+      if (!rawKey) {
+        console.error('FIREBASE_SERVICE_ACCOUNT is not configured; push notifications are disabled');
+        return res.status(500).json({ success: false, error: 'Push notifications are not configured' });
       }
+      const serviceAccount = typeof rawKey === 'string' ? JSON.parse(rawKey) : rawKey;
+      initializeApp({ credential: cert(serviceAccount) });
     }
 
     // Send Real Push via FCM v1
@@ -81,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     const response = await getMessaging().send(message);
-    return res.status(200).json({ success: true, messageId: response, token: targetToken });
+    return res.status(200).json({ success: true, messageId: response });
   } catch (error: any) {
     console.error('FCM Dispatch Failed:', error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
