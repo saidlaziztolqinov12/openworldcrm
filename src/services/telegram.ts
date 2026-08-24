@@ -1,15 +1,6 @@
 import { apiUrl } from '../lib/apiBase';
 
 /**
- * Escape text destined for Telegram's parse_mode: 'HTML'.
- * Student names and free-text teacher comments are interpolated into the
- * message; an unescaped '<' made Telegram reject the whole send, so the parent
- * silently received nothing.
- */
-export const escapeTelegramHtml = (value: string): string =>
-  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-/**
  * Send a Telegram message through this app's own API route.
  *
  * The bot token deliberately never reaches the client. Sending directly from

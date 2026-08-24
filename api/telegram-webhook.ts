@@ -77,7 +77,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Phone Number extraction & matching
       const digitsOnly = text.replace(/\D/g, '');
       if (digitsOnly.length < 9) {
-        await sendTelegramReply(token, chatId, "Iltimos, telefon raqamingizni to'liq yuboring (masalan: +998901234567).");
+        // Only nudge when the message actually looks like an attempt at a
+        // phone number; otherwise stay quiet rather than replying to every
+        // sticker, contact card or stray word.
+        if (digitsOnly.length >= 5) {
+          await sendTelegramReply(
+            token,
+            chatId,
+            "Iltimos, telefon raqamingizni to'liq yuboring (masalan: +998901234567)."
+          );
+        }
         return res.status(200).json({ ok: true });
       }
 

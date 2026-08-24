@@ -76,8 +76,11 @@ export const StudentModal: React.FC<StudentModalProps> = ({
     const cleanPhone = parentPhone.trim();
     // The bot matches a parent by the last 9 digits of their number, so an
     // incomplete number silently attaches the wrong family — or every family
-    // that shares a placeholder. Require the full national number.
-    if (cleanPhone.replace(/\D/g, '').length < 12) {
+    // that shares a placeholder. Require the full national number, but do not
+    // block an edit that leaves an existing (possibly legacy) number untouched:
+    // that would make it impossible to change the student's cohort.
+    const phoneUnchanged = !!studentToEdit && cleanPhone === (studentToEdit.parentPhone || '').trim();
+    if (!phoneUnchanged && cleanPhone.replace(/\D/g, '').length < 12) {
       setError("Enter the parent's full phone number (9 digits after +998).");
       return;
     }

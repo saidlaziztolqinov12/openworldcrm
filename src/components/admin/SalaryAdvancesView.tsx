@@ -277,7 +277,9 @@ export const SalaryAdvancesView: React.FC = () => {
         amount: cleanAmount,
         date: formDate,
         monthYear,
-        note: formNote.trim() || undefined,
+        // Empty string, not undefined: ignoreUndefinedProperties drops
+        // undefined fields, so clearing a note would leave the old one in place.
+        note: formNote.trim(),
         createdById: currentUser?.id,
         createdByName: currentUser?.name
       };

@@ -43,7 +43,20 @@ service cloud.firestore {
       allow write: if signedIn();
     }
 
+    // Attendance is currently written to all three of these collections (see
+    // saveAttendanceRecord). Consolidating onto attendance_records is tracked
+    // separately; until then all three must be allowed or saving breaks.
     match /attendance_records/{recordId} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+    }
+
+    match /attendance/{recordId} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+    }
+
+    match /sessions/{recordId} {
       allow read: if signedIn();
       allow write: if signedIn();
     }

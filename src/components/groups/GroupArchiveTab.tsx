@@ -69,7 +69,10 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
 
     filteredLogs.forEach((log) => {
       const logDate = new Date(log.timestamp);
-      const logDateStr = !isNaN(logDate.getTime()) ? log.timestamp.substring(0, 10) : todayDateStr;
+      // log.timestamp is a UTC ISO string; slicing it would compare a UTC date
+      // against the local "today" above and mislabel the first five hours of
+      // every Tashkent day as Yesterday.
+      const logDateStr = !isNaN(logDate.getTime()) ? toLocalDateString(logDate) : todayDateStr;
 
       let headerLabel = '';
       if (logDateStr === todayDateStr) {

@@ -1,3 +1,6 @@
+// Load .env before anything reads process.env. Vite injects VITE_* into the
+// client on its own, but the API routes below run in Node and need this.
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
@@ -30,12 +33,22 @@ async function startServer() {
   // Reject oversized bodies instead of buffering whatever is posted.
   app.use(express.json({ limit: "100kb" }));
 
-  app.post("/api/telegram-webhook", mount(telegramWebhook));
-  app.post("/api/send-telegram", mount(sendTelegram));
-  app.post("/api/send-push", mount(sendPush));
+  // Use app.all, not app.post: the handlers do their own method checks and
+  // answer the CORS preflight. Registering POST only meant an OPTIONS request
+  // fell through to the SPA catch-all, so the cross-origin path used by the
+  // Capacitor build could never complete.
+  app.all("/api/telegram-webhook", mount(telegramWebhook));
+  app.all("/api/send-telegram", mount(sendTelegram));
+  app.all("/api/send-push", mount(sendPush));
 
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Any other /api/* path is a 404, in both dev and production. Letting these
+  // fall through means an unknown endpoint answers 200 with the SPA shell.
+  app.use("/api", (_req, res) => {
+    res.status(404).json({ error: "Not found" });
   });
 
   if (process.env.NODE_ENV !== "production") {

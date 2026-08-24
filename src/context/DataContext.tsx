@@ -23,6 +23,7 @@ import {
 } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { generateUniqueStudentId } from '../utils/studentId';
+import { todayLocalDateString } from '../utils/date';
 import { sendTelegramMessage } from '../services/telegram';
 import { apiUrl } from '../lib/apiBase';
 import { formatAttendanceNotification } from '../lib/sms';
@@ -92,9 +93,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // an ungated effect subscribed every collection before anyone signed in.
   useEffect(() => {
     if (!currentUser) {
+      // Clear the previous session's records: signing in as someone else must
+      // not briefly render the last account's students, staff and payroll.
+      setUsers([]);
+      setGroups([]);
+      setStudents([]);
+      setAttendanceRecords([]);
+      setNotifications([]);
+      setGroupActivityLogs([]);
+      setSalaryAdvances([]);
       setLoading(false);
       return;
     }
+
+    // Show a loading state while the first snapshots arrive, rather than an
+    // empty dashboard that looks like a centre with no data in it.
+    setLoading(true);
 
     let unsubscribeUsers = () => {};
     let unsubscribeGroups = () => {};
@@ -382,27 +396,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       )
     );
 
-    for (const student of affectedStudents) {
-      try {
-        await updateDoc(doc(db, 'students', student.id), {
-          groupId: null,
-          previousGroupId: groupId,
-          status: 'active'
-        });
-      } catch (e) {
-        console.warn(`Firestore update notice for student ${student.id}:`, e);
-      }
-    }
-
-    // 2. Delete group from local state
-    setGroups((prev) => prev.filter((g) => g.id !== groupId));
-
-    // 3. Delete group from Firestore
+    // Unassign the students and delete the cohort atomically. Previously these
+    // were N independent writes whose errors were swallowed, so the cohort was
+    // deleted even when some students failed to be detached — leaving them
+    // pointing at a group that no longer exists.
     try {
-      await deleteDoc(doc(db, 'groups', groupId));
+      const CHUNK = 400;
+      for (let i = 0; i < affectedStudents.length; i += CHUNK) {
+        const batch = writeBatch(db);
+        for (const student of affectedStudents.slice(i, i + CHUNK)) {
+          batch.update(doc(db, 'students', student.id), {
+            groupId: null,
+            previousGroupId: groupId,
+            status: 'active'
+          });
+        }
+        // Delete the group in the final chunk, once every detach has succeeded.
+        if (i + CHUNK >= affectedStudents.length) {
+          batch.delete(doc(db, 'groups', groupId));
+        }
+        await batch.commit();
+      }
+      if (affectedStudents.length === 0) {
+        await deleteDoc(doc(db, 'groups', groupId));
+      }
     } catch (e) {
-      console.warn(`Firestore delete notice for group ${groupId}:`, e);
+      console.error(`Failed to delete group ${groupId}:`, e);
+      throw e;
     }
+
+    setGroups((prev) => prev.filter((g) => g.id !== groupId));
   };
 
   const reassignTeacher = async (groupId: string, teacherId: string, teacherName: string): Promise<void> => {
@@ -586,7 +609,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       groupId: record.groupId || '',
       groupName: record.groupName || '',
       teacherId: record.teacherId || '',
-      date: record.date || new Date().toISOString(),
+      date: record.date || todayLocalDateString(),
       lessonNumber: record.lessonNumber || 1,
       records: cleanedRecords,
       statusMap: record.statusMap || {},
@@ -786,25 +809,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const nextReadBy = (n: InternalNotification) =>
       (n.readBy || []).includes(userId) ? (n.readBy as string[]) : [...(n.readBy || []), userId];
 
+    // `read` is a single shared boolean on the document. For a broadcast
+    // (recipientId 'GLOBAL' / 'all_teachers' / 'all') setting it marks the
+    // announcement read for everyone, so those documents only get the
+    // per-person `readBy` entry.
+    const isShared = (n: InternalNotification) =>
+      n.recipientId !== userId;
+    const payloadFor = (n: InternalNotification) =>
+      isShared(n) ? { readBy: nextReadBy(n) } : { read: true, readBy: nextReadBy(n) };
+
     setNotifications((prev) =>
       prev.map((n) =>
-        pending.some((p) => p.id === n.id) ? { ...n, read: true, readBy: nextReadBy(n) } : n
+        pending.some((p) => p.id === n.id) ? { ...n, ...payloadFor(n) } : n
       )
     );
 
     try {
-      // One batch instead of N un-awaited writes. The previous
+      // Batched instead of N un-awaited writes. The previous
       // `forEach(async ...)` never awaited, so the try/catch could not catch
       // anything and failures surfaced as unhandled rejections.
-      const batch = writeBatch(db);
-      for (const n of pending) {
-        batch.set(
-          doc(db, 'notifications', n.id),
-          { read: true, readBy: nextReadBy(n) },
-          { merge: true }
-        );
+      // Firestore caps a batch at 500 operations, so chunk it.
+      const CHUNK = 400;
+      for (let i = 0; i < pending.length; i += CHUNK) {
+        const batch = writeBatch(db);
+        for (const n of pending.slice(i, i + CHUNK)) {
+          batch.set(doc(db, 'notifications', n.id), payloadFor(n), { merge: true });
+        }
+        await batch.commit();
       }
-      await batch.commit();
     } catch (e) {
       console.error('Failed to mark notifications as read:', e);
       throw e;
