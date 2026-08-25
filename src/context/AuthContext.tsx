@@ -10,6 +10,7 @@ interface AuthContextType {
   currentUser: User | null;
   role: UserRole | null;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   isTeacher: boolean;
   isLoading: boolean;
   loginAs: (user: User) => void;
@@ -36,11 +37,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && (parsed.role === 'admin' || parsed.id === 'admin-1' || (parsed.name && parsed.name.includes('Sarah')))) {
+        if (parsed && (parsed.id === 'admin-1' || parsed.email === 'admin@center.com')) {
           parsed.name = 'MuhammadIso Ermatov';
           parsed.firstName = 'MuhammadIso';
           parsed.surname = 'Ermatov';
           parsed.title = 'Director';
+          parsed.role = 'super_admin';
         }
         return parsed;
       }
@@ -125,7 +127,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginAs = (user: User) => {
     const sanitizedUser = { ...user };
-    if (sanitizedUser.role === 'admin' || sanitizedUser.id === 'admin-1' || (sanitizedUser.name && sanitizedUser.name.includes('Sarah'))) {
+    if (sanitizedUser.id === 'admin-1' || sanitizedUser.email === 'admin@center.com') {
+      sanitizedUser.role = 'super_admin';
       sanitizedUser.name = 'MuhammadIso Ermatov';
       sanitizedUser.firstName = 'MuhammadIso';
       sanitizedUser.surname = 'Ermatov';
@@ -151,14 +154,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       (trimmedEmail === 'admin@center.com' || trimmedEmail === 'admin' || trimmedEmail === 'director' || trimmedEmail === 'admin@openworld.edu' || trimmedEmail === 'admin@edupulse.edu') &&
       trimmedPassword === 'admin123'
     ) {
-      const foundAdmin = registeredUsers.find((u) => u.role === 'admin');
+      const foundAdmin = registeredUsers.find((u) => u.role === 'super_admin' || u.role === 'admin');
       const adminUser: User = {
         ...(foundAdmin || INITIAL_USERS[0]),
         name: 'MuhammadIso Ermatov',
         firstName: 'MuhammadIso',
         surname: 'Ermatov',
         title: 'Director',
-        role: 'admin'
+        role: 'super_admin'
       };
       setCurrentUser(adminUser);
       localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(adminUser));
@@ -189,7 +192,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const sanitizedUser = { ...matchedUser };
-    if (sanitizedUser.role === 'admin' || sanitizedUser.id === 'admin-1' || (sanitizedUser.name && sanitizedUser.name.includes('Sarah'))) {
+    if (sanitizedUser.id === 'admin-1' || sanitizedUser.email === 'admin@center.com') {
+      sanitizedUser.role = 'super_admin';
       sanitizedUser.name = 'MuhammadIso Ermatov';
       sanitizedUser.firstName = 'MuhammadIso';
       sanitizedUser.surname = 'Ermatov';
@@ -210,7 +214,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const role = currentUser?.role || null;
-  const isAdmin = role === 'admin';
+  const isSuperAdmin = role === 'super_admin';
+  const isAdmin = role === 'admin' || role === 'super_admin';
   const isTeacher = role === 'teacher';
 
   return (
@@ -219,6 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentUser,
         role,
         isAdmin,
+        isSuperAdmin,
         isTeacher,
         isLoading,
         loginAs,

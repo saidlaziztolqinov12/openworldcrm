@@ -19,6 +19,7 @@ import { TeacherProfileView } from './components/admin/TeacherProfileView';
 import { GlobalAnalytics } from './components/admin/GlobalAnalytics';
 import { AllStudentsDirectory } from './components/admin/AllStudentsDirectory';
 import { SalaryAdvancesView } from './components/admin/SalaryAdvancesView';
+import { AdminManagement } from './components/admin/AdminManagement';
 import { TeacherDashboard } from './components/teacher/TeacherDashboard';
 import { TeacherAttendanceLog } from './components/teacher/TeacherAttendanceLog';
 import { TeacherStudentsDirectory } from './components/teacher/TeacherStudentsDirectory';
@@ -27,13 +28,15 @@ import { StudentModal } from './components/students/StudentModal';
 import { InboxView } from './components/notifications/InboxView';
 
 const MainApp: React.FC = () => {
-  const { currentUser, isAdmin, isTeacher, isLoading } = useAuth();
+  const { currentUser, isAdmin, isTeacher, isSuperAdmin, isLoading } = useAuth();
   const { groups, teachers } = useData();
 
   // Navigation tab state
   const [activeTab, setActiveTab] = useState<string>(
     isAdmin ? 'admin-dashboard' : 'teacher-dashboard'
   );
+
+  const [toastWarning, setToastWarning] = useState<string | null>(null);
 
   // Sidebar collapse state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
@@ -47,12 +50,17 @@ const MainApp: React.FC = () => {
 
   // Sync default tab when user changes role
   useEffect(() => {
-    if (isAdmin && !['admin-dashboard', 'admin-students', 'teachers', 'salary-advances', 'analytics', 'inbox'].includes(activeTab)) {
+    if ((activeTab === 'salary-advances' || activeTab === 'all-admins') && !isSuperAdmin) {
+      setActiveTab('admin-dashboard');
+      setToastWarning('Access restricted to Super Admin only.');
+      setTimeout(() => setToastWarning(null), 3500);
+    }
+    if (isAdmin && !['admin-dashboard', 'admin-students', 'teachers', 'all-admins', 'salary-advances', 'analytics', 'inbox'].includes(activeTab)) {
       setActiveTab('admin-dashboard');
     } else if (isTeacher && !['teacher-dashboard', 'teacher-students', 'teacher-attendance-history', 'inbox'].includes(activeTab)) {
       setActiveTab('teacher-dashboard');
     }
-  }, [isAdmin, isTeacher, activeTab]);
+  }, [isAdmin, isTeacher, isSuperAdmin, activeTab]);
 
   // Keep latest navigation state in ref for safe, event-driven back handling
   const navStateRef = useRef({
@@ -192,6 +200,11 @@ const MainApp: React.FC = () => {
   };
 
   const handleSidebarTabSelect = (tab: string) => {
+    if ((tab === 'salary-advances' || tab === 'all-admins') && !isSuperAdmin) {
+      setToastWarning('Access restricted to Super Admin only.');
+      setTimeout(() => setToastWarning(null), 3500);
+      return;
+    }
     setSelectedGroupId(null);
     setSelectedTeacherId(null);
     setActiveTab(tab);
@@ -226,6 +239,8 @@ const MainApp: React.FC = () => {
         return 'My Students Roster';
       case 'teachers':
         return 'Teachers Roster';
+      case 'all-admins':
+        return 'All Administrators';
       case 'salary-advances':
         return 'Salary Advances';
       case 'analytics':
@@ -241,6 +256,11 @@ const MainApp: React.FC = () => {
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans selection:bg-indigo-600 selection:text-white transition-colors duration-200">
+      {toastWarning && (
+        <div className="fixed top-5 right-5 z-50 bg-rose-600 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-top-3">
+          <span>{toastWarning}</span>
+        </div>
+      )}
       {/* Collapsible Left-Hand Sidebar (Desktop) */}
       <Sidebar
         activeTab={activeTab}
@@ -295,6 +315,9 @@ const MainApp: React.FC = () => {
                       onSelectGroup={handleSelectGroup}
                       onSelectTeacher={handleSelectTeacher}
                     />
+                  )}
+                  {activeTab === 'all-admins' && (
+                    <AdminManagement />
                   )}
                   {activeTab === 'salary-advances' && (
                     <SalaryAdvancesView />

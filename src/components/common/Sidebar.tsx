@@ -12,7 +12,8 @@ import {
   ChevronRight,
   WifiOff,
   Inbox,
-  Wallet
+  Wallet,
+  ShieldCheck
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -29,8 +30,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed,
   setIsCollapsed
 }) => {
-  const { currentUser, isAdmin } = useAuth();
-  const { isOnline, students, groups, teachers, notifications } = useData();
+  const { currentUser, isAdmin, isSuperAdmin } = useAuth();
+  const { isOnline, students, groups, teachers, admins, notifications } = useData();
 
   const visibleNotifications = useMemo(() => {
     return notifications.filter((n) => {
@@ -77,11 +78,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
           icon: UserCheck,
           badge: teachers.length.toString()
         },
-        {
-          id: 'salary-advances',
-          label: 'Salary Advances',
-          icon: Wallet
-        },
+        ...(isSuperAdmin
+          ? [
+              {
+                id: 'all-admins',
+                label: 'All Admins',
+                icon: ShieldCheck,
+                badge: admins.length.toString()
+              },
+              {
+                id: 'salary-advances',
+                label: 'Salary Advances',
+                icon: Wallet
+              }
+            ]
+          : []),
         {
           id: 'analytics',
           label: 'Analytics',

@@ -13,7 +13,7 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ activeTabTitle, onOpenTeacherActivity, onNavigate }) => {
-  const { currentUser, isAdmin, logout } = useAuth();
+  const { currentUser, isAdmin, isSuperAdmin, logout } = useAuth();
   const { notifications } = useData();
   const { isDark, toggleTheme } = useTheme();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -73,9 +73,15 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTabTitle, onOpenTeacherAct
             <span className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate">
               {activeTabTitle || 'Open World'}
             </span>
-            <span className="hidden sm:inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/60 uppercase">
-              {isAdmin ? 'Admin Portal' : 'Instructor Workspace'}
-            </span>
+            {isSuperAdmin ? (
+              <span className="hidden sm:inline-flex text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-800 uppercase shadow-xs">
+                Super Admin
+              </span>
+            ) : (
+              <span className="hidden sm:inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/60 uppercase">
+                {isAdmin ? 'Admin Portal' : 'Instructor Workspace'}
+              </span>
+            )}
           </div>
         </div>
 
@@ -173,8 +179,14 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTabTitle, onOpenTeacherAct
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
                         {currentUser?.email || (isAdmin ? 'admin@center.com' : 'teacher@center.com')}
                       </p>
-                      <span className="inline-block mt-1 text-[9px] font-medium text-indigo-600 dark:text-indigo-400">
-                        {isAdmin ? 'Administrator' : 'Instructor'}
+                      <span className={`inline-block mt-1 text-[9px] font-bold px-2 py-0.5 rounded-md ${
+                        isSuperAdmin 
+                          ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300' 
+                          : isAdmin 
+                          ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300' 
+                          : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                      }`}>
+                        {isSuperAdmin ? 'Super Administrator' : isAdmin ? 'Administrator' : 'Instructor'}
                       </span>
                     </div>
                   </div>

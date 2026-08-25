@@ -7,7 +7,8 @@ import {
   BookOpen,
   GraduationCap,
   UserCheck,
-  Inbox
+  Inbox,
+  ShieldCheck
 } from 'lucide-react';
 
 interface MobileNavProps {
@@ -16,7 +17,7 @@ interface MobileNavProps {
 }
 
 export const MobileNav: React.FC<MobileNavProps> = ({ activeTab, setActiveTab }) => {
-  const { isAdmin, currentUser } = useAuth();
+  const { isAdmin, isSuperAdmin, currentUser } = useAuth();
   const { notifications } = useData();
 
   const visibleNotifications = notifications.filter((n) => {
@@ -71,6 +72,20 @@ export const MobileNav: React.FC<MobileNavProps> = ({ activeTab, setActiveTab })
               <UserCheck className="w-5 h-5" strokeWidth={activeTab === 'teachers' ? 2.4 : 2.2} />
               <span className="text-[10.5px] mt-0.5 tracking-tight">Teachers</span>
             </button>
+
+            {isSuperAdmin && (
+              <button
+                onClick={() => setActiveTab('all-admins')}
+                className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-colors cursor-pointer ${
+                  activeTab === 'all-admins'
+                    ? 'text-purple-600 dark:text-purple-400 font-extrabold'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-semibold'
+                }`}
+              >
+                <ShieldCheck className="w-5 h-5" strokeWidth={activeTab === 'all-admins' ? 2.4 : 2.2} />
+                <span className="text-[10.5px] mt-0.5 tracking-tight">Admins</span>
+              </button>
+            )}
 
             <button
               onClick={() => setActiveTab('inbox')}

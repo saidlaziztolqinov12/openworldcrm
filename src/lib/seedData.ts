@@ -347,7 +347,7 @@ export const INITIAL_USERS: User[] = [
     surname: 'Ermatov',
     email: 'admin@center.com',
     password: 'admin123',
-    role: 'admin',
+    role: 'super_admin',
     phone: '+998 90 123 4567',
     title: 'Director',
     subject: 'Center Administration & Academic Direction',

@@ -19,7 +19,9 @@ import {
   deleteDoc,
   query,
   getDocs,
-  getDoc
+  getDoc,
+  addDoc,
+  serverTimestamp
 } from 'firebase/firestore';
 import {
   INITIAL_USERS,
@@ -39,6 +41,7 @@ import { formatAttendanceNotification } from '../lib/sms';
 interface DataContextType {
   users: User[];
   teachers: User[];
+  admins: User[];
   groups: Group[];
   students: Student[];
   attendanceRecords: AttendanceRecord[];
@@ -62,6 +65,7 @@ interface DataContextType {
   addTeacher: (teacher: Omit<User, 'id' | 'createdAt'>) => Promise<string>;
   updateTeacher: (id: string, teacher: Partial<User>) => Promise<void>;
   deleteTeacher: (id: string) => Promise<void>;
+  addAdmin: (admin: Omit<User, 'id' | 'createdAt' | 'role'>) => Promise<string>;
   migrateMissingStudentIds: () => Promise<number>;
   sendNotification: (notif: Omit<InternalNotification, 'id' | 'createdAt' | 'read' | 'readBy'>) => Promise<string>;
   markNotificationAsRead: (id: string, userId?: string) => Promise<void>;
@@ -131,14 +135,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
               snapshot.forEach((d) => {
                 const data = d.data() as Omit<User, 'id'>;
                 let u: User = { id: d.id, ...data };
-                if (u.id === 'admin-1' || u.role === 'admin' || (u.name && u.name.includes('Sarah'))) {
+                if (u.id === 'admin-1' || u.email === 'admin@center.com' || (u.name && u.name.includes('Sarah'))) {
                   u = {
                     ...u,
                     name: 'MuhammadIso Ermatov',
                     firstName: 'MuhammadIso',
                     surname: 'Ermatov',
                     title: 'Director',
-                    role: 'admin'
+                    role: 'super_admin'
                   };
                 }
                 items.push(u);
@@ -273,21 +277,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const teachers = users.filter((u) => u.role === 'teacher');
+  const admins = users.filter((u) => u.role === 'admin' || u.role === 'super_admin');
 
-  const addSalaryAdvance = async (advanceData: Omit<SalaryAdvance, 'id' | 'createdAt'>): Promise<string> => {
-    const id = `advance-${Date.now()}`;
-    const newAdvance: SalaryAdvance = {
-      ...advanceData,
+  const addAdmin = async (adminData: Omit<User, 'id' | 'createdAt' | 'role'>): Promise<string> => {
+    const id = `admin-${Date.now()}`;
+    const newAdmin: User = {
+      ...adminData,
       id,
+      role: 'admin',
+      avatarColor: adminData.avatarColor || 'bg-indigo-600',
       createdAt: new Date().toISOString()
     };
-    setSalaryAdvances((prev) => [newAdvance, ...prev]);
+    setUsers((prev) => [...prev, newAdmin]);
     try {
-      await setDoc(doc(db, 'salary_advances', id), newAdvance);
+      await setDoc(doc(db, 'users', id), newAdmin);
     } catch (e) {
-      console.warn('Firestore write notice for addSalaryAdvance:', e);
+      console.warn('Firestore write notice for addAdmin:', e);
     }
     return id;
+  };
+
+  const addSalaryAdvance = async (advanceData: Omit<SalaryAdvance, 'id' | 'createdAt'>): Promise<string> => {
+    try {
+      const docRef = await addDoc(collection(db, 'salary_advances'), {
+        ...advanceData,
+        createdAt: serverTimestamp()
+      });
+      return docRef.id;
+    } catch (e) {
+      console.warn('Firestore write notice for addSalaryAdvance:', e);
+      const id = `advance-${Date.now()}`;
+      const newAdvance: SalaryAdvance = {
+        ...advanceData,
+        id,
+        createdAt: new Date().toISOString()
+      };
+      setSalaryAdvances((prev) => [newAdvance, ...prev]);
+      return id;
+    }
   };
 
   const updateSalaryAdvance = async (id: string, advanceData: Partial<SalaryAdvance>): Promise<void> => {
@@ -1067,6 +1094,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         users,
         teachers,
+        admins,
         groups,
         students,
         attendanceRecords,
@@ -1090,6 +1118,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addTeacher,
         updateTeacher,
         deleteTeacher,
+        addAdmin,
         migrateMissingStudentIds,
         sendNotification,
         markNotificationAsRead,

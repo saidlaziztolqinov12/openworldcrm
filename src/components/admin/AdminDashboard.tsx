@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import { Group, User } from '../../types';
 import { GroupModal } from '../groups/GroupModal';
 import { TeacherModal } from './TeacherModal';
+import { AdminModal } from './AdminModal';
 import { AnimatedCounter } from '../common/AnimatedCounter';
 import {
   GraduationCap,
@@ -47,6 +49,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     deleteGroup,
     reassignTeacher
   } = useData();
+  const { isSuperAdmin } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTeacherFilter, setSelectedTeacherFilter] = useState('all');
@@ -59,6 +62,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [groupToDelete, setGroupToDelete] = useState<Group | null>(null);
   const [isDeletingGroup, setIsDeletingGroup] = useState(false);
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
+  const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
 
   // Center-wide KPI computations
   const activeGroups = groups.filter((g) => !g.archived);
@@ -118,6 +122,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   return (
     <div className="space-y-6 pb-20 md:pb-12 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 overflow-x-hidden">
+      {toastMessage && (
+        <div className="fixed top-5 right-5 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-top-3">
+          <span>{toastMessage}</span>
+        </div>
+      )}
       {/* Admin Hero Header */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-850 to-indigo-950 rounded-lg p-6 sm:p-7 text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden border-none">
         <div className="absolute -top-10 -right-10 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -136,14 +145,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 relative z-10">
-          <button
-            onClick={onNavigateSalaryAdvances}
-            className="px-3.5 py-2.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
-            title="Manage Teacher Salary Advances"
-          >
-            <Wallet className="w-4 h-4 text-indigo-400" />
-            <span>Salary Advances</span>
-          </button>
+          {isSuperAdmin && (
+            <button
+              onClick={onNavigateSalaryAdvances}
+              className="px-3.5 py-2.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+              title="Manage Teacher Salary Advances"
+            >
+              <Wallet className="w-4 h-4 text-indigo-400" />
+              <span>Salary Advances</span>
+            </button>
+          )}
+
+          {isSuperAdmin && (
+            <button
+              onClick={() => setIsAddAdminModalOpen(true)}
+              className="px-3.5 py-2.5 rounded-md bg-purple-900/60 hover:bg-purple-900 text-purple-100 text-xs font-bold border border-purple-700/60 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+            >
+              <Plus className="w-4 h-4 text-purple-300" />
+              <span>+ Add Admin</span>
+            </button>
+          )}
 
           <button
             onClick={() => setIsTeacherModalOpen(true)}
@@ -479,6 +500,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* Add Admin Modal */}
+      <AdminModal
+        isOpen={isAddAdminModalOpen}
+        onClose={() => setIsAddAdminModalOpen(false)}
+        onSuccess={() => {
+          setToastMessage('Admin account created successfully.');
+          setTimeout(() => setToastMessage(null), 3500);
+        }}
+      />
     </div>
   );
 };
