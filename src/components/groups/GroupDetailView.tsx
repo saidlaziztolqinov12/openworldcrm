@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'motion/react';
 import {
   Student,
@@ -133,34 +133,40 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [attendanceRecords, groupId]);
 
-  // Load existing attendance record for selectedDate
-  useEffect(() => {
-    const existing = attendanceRecords.find(
-      (r) => r.groupId === groupId && r.date === selectedDate
-    );
+  // Load existing attendance record for selectedDate safely without resetting unsaved local marks on snapshot updates
+  const lastLoadedKeyRef = useRef<string>('');
 
-    if (existing) {
-      // Normalize statusMap so valid attendance statuses exist
-      const normalizedStatus: AttendanceStatusMap = {};
-      Object.entries(existing.statusMap || {}).forEach(([k, v]) => {
-        if (v === 'absent' || v === 'present' || v === 'late') {
-          normalizedStatus[k] = v;
-        }
-      });
-      setStatusMap(normalizedStatus);
-      setMarksMap(existing.marksMap || {});
-      setCommentsMap(existing.commentsMap || {});
-      setTopicCovered(existing.topicCovered || '');
-      setSessionNotes(existing.notes || '');
-    } else {
-      // Before attendance is taken, start with empty maps so students are unlabeled
-      setStatusMap({});
-      setMarksMap({});
-      setCommentsMap({});
-      setTopicCovered('');
-      setSessionNotes('');
+  useEffect(() => {
+    const currentKey = `${groupId}_${selectedDate}`;
+    if (lastLoadedKeyRef.current !== currentKey) {
+      const existing = attendanceRecords.find(
+        (r) => r.groupId === groupId && r.date === selectedDate
+      );
+
+      if (existing) {
+        // Normalize statusMap so valid attendance statuses exist
+        const normalizedStatus: AttendanceStatusMap = {};
+        Object.entries(existing.statusMap || {}).forEach(([k, v]) => {
+          if (v === 'absent' || v === 'present' || v === 'late') {
+            normalizedStatus[k] = v;
+          }
+        });
+        setStatusMap(normalizedStatus);
+        setMarksMap(existing.marksMap || {});
+        setCommentsMap(existing.commentsMap || {});
+        setTopicCovered(existing.topicCovered || '');
+        setSessionNotes(existing.notes || '');
+      } else {
+        // Before attendance is taken, start with empty maps so students are unlabeled
+        setStatusMap({});
+        setMarksMap({});
+        setCommentsMap({});
+        setTopicCovered('');
+        setSessionNotes('');
+      }
+      lastLoadedKeyRef.current = currentKey;
     }
-  }, [selectedDate, groupId, attendanceRecords, groupStudents]);
+  }, [selectedDate, groupId, attendanceRecords]);
 
   if (!group) {
     return (
@@ -291,8 +297,16 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
           <span>Back to Groups</span>
         </button>
 
-        {isAdmin && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsNotifyModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold shadow-xs transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Notify Parents</span>
+          </button>
+
+          {isAdmin && (
             <button
               onClick={() => setIsEditGroupOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-xs transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer"
@@ -300,8 +314,8 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
               <Edit2 className="w-3.5 h-3.5" />
               <span>Edit Group Details</span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Main Group Header Card */}

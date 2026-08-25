@@ -142,11 +142,13 @@ export const InboxView: React.FC<InboxViewProps> = ({ onSelectGroup: _onSelectGr
     }
   }, [notifications, isAdmin, currentUser, adminScope]);
 
-  // 2. Apply Category Filters (All, Transfer Requests, Announcements, Unread)
+  // 2. Apply Category Filters (All, Pending, Read, Transfer Requests, Announcements, Unread)
   const filteredNotifications = useMemo(() => {
     return scopedNotifications
       .filter((n) => {
         if (categoryFilter === 'unread') return !n.read;
+        if (categoryFilter === 'pending') return isPendingStatus(n.status);
+        if (categoryFilter === 'read') return n.read || (n.status && !isPendingStatus(n.status));
         if (categoryFilter === 'transfer_requests') return isTransferType(n.type);
         if (categoryFilter === 'announcements') return isAnnouncementType(n.type);
         return true;

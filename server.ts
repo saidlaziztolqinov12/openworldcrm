@@ -203,7 +203,49 @@ async function startServer() {
     }
 
     try {
+      const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT;
+      if (!rawKey) {
+        return res.status(500).json({
+          success: false,
+          error: 'FIREBASE_SERVICE_ACCOUNT environment variable is unconfigured. Please configure Firebase Admin credentials.'
+        });
+      }
+
       const { recipientUserId, token, fcmToken, title, body, data } = req.body || {};
+
+      if (recipientUserId === 'GLOBAL' || recipientUserId === 'all' || recipientUserId === 'all_users') {
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const tokens: string[] = [];
+        usersSnapshot.forEach((docSnap) => {
+          const uData = docSnap.data();
+          if (uData.fcmToken && typeof uData.fcmToken === 'string' && uData.fcmToken.trim() !== '') {
+            tokens.push(uData.fcmToken);
+          }
+        });
+
+        if (tokens.length === 0) {
+          return res.status(200).json({ success: true, message: 'No active device tokens found for global push broadcast.' });
+        }
+
+        const messaging = getMessaging();
+        for (let i = 0; i < tokens.length; i += 500) {
+          const batchTokens = tokens.slice(i, i + 500);
+          await messaging.sendEachForMulticast({
+            tokens: batchTokens,
+            notification: {
+              title: title || 'New Broadcast Announcement',
+              body: body || ''
+            },
+            data: data ? Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])) : {},
+            android: {
+              priority: 'high',
+              notification: { sound: 'default', channelId: 'default' }
+            }
+          });
+        }
+        return res.status(200).json({ success: true, count: tokens.length });
+      }
+
       let targetToken = token || fcmToken;
 
       if (!targetToken && recipientUserId) {
@@ -265,7 +307,7 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*all', (req, res) => {
+    app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

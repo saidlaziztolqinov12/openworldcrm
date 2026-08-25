@@ -31,6 +31,11 @@ export const createSmsUri = (phoneNumber: string, message: string = ''): string 
   return `sms:${cleanNumber}${separator}${encodeURIComponent(message)}`;
 };
 
+export const escapeHtml = (str: string): string => {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+};
+
 export const formatAttendanceNotification = (
   studentName: string,
   dateStr: string,
@@ -70,20 +75,23 @@ export const formatAttendanceNotification = (
     status === 'late' ? "⚠️ Kechikib keldi" :
     "❌ Darsga kelmadi";
 
+  const safeStudentName = escapeHtml(studentName);
+  const safeNote = note ? escapeHtml(note.trim()) : '';
+
   const lines: string[] = [
     "🔔 Open World — O'quvchi hisoboti",
     "",
-    `Student: ${studentName}`,
+    `Student: ${safeStudentName}`,
     `Sana: ${formattedDate} (${dayOfWeek})`,
     `Holati: ${statusBadge}`
   ];
 
   if (score !== undefined && score !== null && String(score).trim() !== '') {
-    lines.push(`Ball: ${score}`);
+    lines.push(`Ball: ${escapeHtml(String(score))}`);
   }
 
-  if (note && note.trim() !== '') {
-    lines.push(`Izoh: ${note.trim()}`);
+  if (safeNote !== '') {
+    lines.push(`Izoh: ${safeNote}`);
   }
 
   lines.push("");

@@ -22,7 +22,8 @@ import {
   ShieldCheck,
   ArrowRight,
   Trash2,
-  Wallet
+  Wallet,
+  Wrench
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -47,7 +48,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     attendanceRecords,
     archiveGroup,
     deleteGroup,
-    reassignTeacher
+    reassignTeacher,
+    migrateMissingStudentIds
   } = useData();
   const { isSuperAdmin } = useAuth();
 
@@ -55,6 +57,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [selectedTeacherFilter, setSelectedTeacherFilter] = useState('all');
   const [showArchived, setShowArchived] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isUtilitiesOpen, setIsUtilitiesOpen] = useState(false);
+  const [migratingIds, setMigratingIds] = useState(false);
+
+  const handleMigrateIds = async () => {
+    setMigratingIds(true);
+    try {
+      const count = await migrateMissingStudentIds();
+      setToastMessage(`Successfully migrated ${count} student IDs!`);
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (e) {
+      console.error(e);
+      setToastMessage('Failed to migrate student IDs.');
+      setTimeout(() => setToastMessage(null), 3000);
+    } finally {
+      setMigratingIds(false);
+      setIsUtilitiesOpen(false);
+    }
+  };
 
   // Modals
   const [isNewGroupModalOpen, setIsNewGroupModalOpen] = useState(false);
@@ -184,6 +204,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <Plus className="w-4 h-4" />
             <span>Create Group</span>
           </button>
+
+          {/* Admin Utilities Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsUtilitiesOpen(!isUtilitiesOpen)}
+              className="px-3.5 py-2.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+            >
+              <Wrench className="w-4 h-4 text-indigo-400" />
+              <span>Admin Utilities</span>
+            </button>
+
+            {isUtilitiesOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 py-1.5 text-xs text-slate-200">
+                <button
+                  onClick={handleMigrateIds}
+                  disabled={migratingIds}
+                  className="w-full text-left px-4 py-2 hover:bg-slate-800 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>{migratingIds ? 'Migrating...' : 'Migrate Missing Student IDs'}</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

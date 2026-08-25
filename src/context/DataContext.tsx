@@ -27,7 +27,8 @@ import {
   getDocs,
   getDoc,
   addDoc,
-  serverTimestamp
+  serverTimestamp,
+  writeBatch
 } from 'firebase/firestore';
 import {
   INITIAL_USERS,
@@ -77,6 +78,7 @@ interface DataContextType {
   sendNotification: (notif: Omit<InternalNotification, 'id' | 'createdAt' | 'read' | 'readBy'>) => Promise<string>;
   markNotificationAsRead: (id: string, userId?: string) => Promise<void>;
   updateNotificationStatus: (notificationId: string, status: 'accepted' | 'declined' | 'read') => Promise<void>;
+  resolveTeacherRequest: (notificationId: string, status: 'accepted' | 'declined' | 'read') => Promise<void>;
   markAllNotificationsAsRead: (userId?: string) => Promise<void>;
   approveTransferRequest: (notificationId: string) => Promise<void>;
   rejectTransferRequest: (notificationId: string) => Promise<void>;
@@ -1081,15 +1083,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await setDoc(doc(db, 'notifications', id), newNotif);
 
-      // Trigger push notification via /api/send-push
+      // Trigger push notification via absolute API_BASE
       if (notifData.recipientId) {
-        await fetch('/api/send-push', {
+        const apiBase = (typeof window !== 'undefined' && window.location?.origin && window.location.origin.startsWith('http'))
+          ? window.location.origin
+          : ((import.meta as any).env?.VITE_API_BASE_URL || 'https://ais-dev-g3246sj4v3smwahqwra5jh-1047176565098.asia-southeast1.run.app');
+        await fetch(`${apiBase}/api/send-push`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             recipientUserId: notifData.recipientId,
-            title: "🔔 New Request Received",
-            body: `${notifData.senderName || 'Instructor'} sent you a request: ${notifData.title}`,
+            title: notifData.title || "🔔 New Request Received",
+            body: notifData.message || `${notifData.senderName || 'Instructor'} sent you a request: ${notifData.title}`,
             data: { route: '/inbox' }
           })
         });
@@ -1128,37 +1133,52 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     notificationId: string,
     status: 'accepted' | 'declined' | 'read'
   ): Promise<void> => {
+    const dbStatus = status === 'accepted' ? 'APPROVED' : status === 'declined' ? 'REJECTED' : 'READ';
     setNotifications((prev) =>
-      prev.map((n) => (n.id === notificationId ? { ...n, status, read: true } : n))
+      prev.map((n) => (n.id === notificationId ? { ...n, status: dbStatus as any, read: true } : n))
     );
     try {
-      await setDoc(doc(db, 'notifications', notificationId), { status, read: true }, { merge: true });
+      await setDoc(doc(db, 'notifications', notificationId), { status: dbStatus, read: true }, { merge: true });
     } catch (e) {
       console.warn('Firestore update notice for updateNotificationStatus:', e);
+      throw e;
     }
   };
 
+  const resolveTeacherRequest = updateNotificationStatus;
+
   const markAllNotificationsAsRead = async (userId?: string): Promise<void> => {
+    const targetUserId = userId || currentUser?.id;
     setNotifications((prev) =>
       prev.map((n) => {
+        const isTarget = !targetUserId || n.recipientId === targetUserId || n.recipientId === 'GLOBAL' || n.recipientId === 'all_teachers' || n.recipientId === 'all' || n.recipientRole === 'all';
+        if (!isTarget) return n;
+
         const readBy = n.readBy ? [...n.readBy] : [];
-        if (userId && !readBy.includes(userId)) {
-          readBy.push(userId);
+        if (targetUserId && !readBy.includes(targetUserId)) {
+          readBy.push(targetUserId);
         }
         return { ...n, read: true, readBy };
       })
     );
 
     try {
-      notifications.forEach(async (n) => {
+      const batch = writeBatch(db);
+      notifications.forEach((n) => {
+        const isTarget = !targetUserId || n.recipientId === targetUserId || n.recipientId === 'GLOBAL' || n.recipientId === 'all_teachers' || n.recipientId === 'all' || n.recipientRole === 'all';
+        if (!isTarget) return;
+
         const readBy = n.readBy ? [...n.readBy] : [];
-        if (userId && !readBy.includes(userId)) {
-          readBy.push(userId);
+        if (targetUserId && !readBy.includes(targetUserId)) {
+          readBy.push(targetUserId);
         }
-        await setDoc(doc(db, 'notifications', n.id), { read: true, readBy }, { merge: true });
+        const ref = doc(db, 'notifications', n.id);
+        batch.set(ref, { read: true, readBy }, { merge: true });
       });
+      await batch.commit();
     } catch (e) {
       console.warn('Firestore update notice for markAllNotificationsAsRead:', e);
+      throw e;
     }
   };
 
@@ -1455,6 +1475,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         sendNotification,
         markNotificationAsRead,
         updateNotificationStatus,
+        resolveTeacherRequest,
         markAllNotificationsAsRead,
         approveTransferRequest,
         rejectTransferRequest,

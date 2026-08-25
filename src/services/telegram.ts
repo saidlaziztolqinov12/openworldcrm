@@ -1,3 +1,8 @@
+export const escapeHtml = (str: string): string => {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+};
+
 export const sendTelegramMessage = async (chatId: string | number, text: string) => {
   if (!chatId) return;
   try {
