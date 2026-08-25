@@ -183,10 +183,10 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({ onSelectGr
 
             <div>
               <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
-                Delete Instructor Account?
+                Deactivate Instructor Account?
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                Are you sure you want to delete <span className="font-bold text-slate-800 dark:text-slate-200">{teacherToDelete.name}</span>? This action cannot be undone.
+                Are you sure you want to deactivate <span className="font-bold text-slate-800 dark:text-slate-200">{teacherToDelete.name}</span>? This sets the account to inactive while preserving past group and payment associations.
               </p>
             </div>
 
@@ -204,7 +204,7 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({ onSelectGr
                 onClick={handleDeleteTeacherConfirm}
                 className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/25 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                {isDeleting ? 'Deleting...' : 'Delete Teacher'}
+                {isDeleting ? 'Deactivating...' : 'Deactivate Teacher'}
               </button>
             </div>
           </div>

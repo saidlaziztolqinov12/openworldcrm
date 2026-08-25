@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Student } from '../../types';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { getLocalDate } from '../../lib/dateUtils';
 import { X, UserPlus, Calendar, FileText, GraduationCap, ArrowRightLeft } from 'lucide-react';
 import { PhoneInput } from '../common/PhoneInput';
 
@@ -25,7 +26,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
 
   const [firstName, setFirstName] = useState('');
   const [surname, setSurname] = useState('');
-  const [parentPhone, setParentPhone] = useState('+998901234567');
+  const [parentPhone, setParentPhone] = useState('');
   const [birthDate, setBirthDate] = useState('2009-05-15');
   const [notes, setNotes] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState(groupId);
@@ -46,14 +47,14 @@ export const StudentModal: React.FC<StudentModalProps> = ({
     if (studentToEdit) {
       setFirstName(studentToEdit.firstName || '');
       setSurname(studentToEdit.surname || '');
-      setParentPhone(studentToEdit.parentPhone || '+998901234567');
+      setParentPhone(studentToEdit.parentPhone || '');
       setBirthDate(studentToEdit.birthDate || '2009-05-15');
       setNotes(studentToEdit.notes || '');
       setSelectedGroupId(studentToEdit.groupId || groupId || availableGroups[0]?.id || '');
     } else {
       setFirstName('');
       setSurname('');
-      setParentPhone('+998901234567');
+      setParentPhone('');
       setBirthDate('2009-05-15');
       setNotes('');
       setSelectedGroupId(groupId || availableGroups[0]?.id || '');
@@ -97,7 +98,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
           birthDate,
           notes: notes.trim(),
           groupId: selectedGroupId,
-          enrolledDate: new Date().toISOString().substring(0, 10),
+          enrolledDate: getLocalDate(),
           status: 'active'
         });
       }

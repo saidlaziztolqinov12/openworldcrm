@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
 import { AnimatedCounter } from '../common/AnimatedCounter';
+import { getLocalMonth } from '../../lib/dateUtils';
 import {
   BarChart3,
   TrendingUp,
@@ -22,7 +23,7 @@ export const GlobalAnalytics: React.FC<GlobalAnalyticsProps> = ({ onSelectGroup 
   const { groups, teachers, students, attendanceRecords } = useData();
 
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('all');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().substring(0, 7));
+  const [selectedMonth, setSelectedMonth] = useState(getLocalMonth());
 
   // Filter attendance records by month and group
   const filteredRecords = useMemo(() => {

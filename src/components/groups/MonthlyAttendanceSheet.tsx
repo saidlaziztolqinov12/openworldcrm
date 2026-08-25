@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Group, Student, AttendanceRecord, MonthlyRosterStudent } from '../../types';
 import { useData } from '../../context/DataContext';
 import { AnimatedCounter } from '../common/AnimatedCounter';
+import { getLocalDate } from '../../lib/dateUtils';
 import {
   ChevronLeft,
   ChevronRight,
@@ -115,7 +116,7 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({
   const daysInMonth = useMemo(() => {
     const totalDays = new Date(selectedYear, selectedMonth + 1, 0).getDate();
     const days: { dayNumber: number; dateStr: string; dayOfWeek: string; isToday: boolean }[] = [];
-    const todayISO = today.toISOString().substring(0, 10);
+    const todayISO = getLocalDate();
 
     for (let day = 1; day <= totalDays; day++) {
       const dateObj = new Date(selectedYear, selectedMonth, day);

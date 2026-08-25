@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { StudentPayment, Installment, Student } from '../../types';
 import { db } from '../../firebase.config';
 import { collection, onSnapshot, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { getLocalDate } from '../../lib/dateUtils';
 import {
   CreditCard,
   Search,
@@ -82,7 +83,7 @@ export const PaymentsView: React.FC = () => {
   const [recordStudent, setRecordStudent] = useState<Student | null>(null);
   const [amountInput, setAmountInput] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card / Bank Transfer' | 'Payme / Click' | 'Other'>('Cash');
-  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().substring(0, 10));
+  const [paymentDate, setPaymentDate] = useState(() => getLocalDate());
   const [paymentNote, setPaymentNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -245,7 +246,7 @@ export const PaymentsView: React.FC = () => {
     }
     setAmountInput('');
     setPaymentMethod('Cash');
-    setPaymentDate(new Date().toISOString().substring(0, 10));
+    setPaymentDate(getLocalDate());
     setPaymentNote('');
     setIsRecordModalOpen(true);
   };

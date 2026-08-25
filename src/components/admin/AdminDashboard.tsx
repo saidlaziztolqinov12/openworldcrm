@@ -6,6 +6,7 @@ import { GroupModal } from '../groups/GroupModal';
 import { TeacherModal } from './TeacherModal';
 import { AdminModal } from './AdminModal';
 import { AnimatedCounter } from '../common/AnimatedCounter';
+import { getLocalMonth } from '../../lib/dateUtils';
 import {
   GraduationCap,
   Users,
@@ -14,7 +15,6 @@ import {
   Plus,
   Clock,
   UserCheck,
-  TrendingUp,
   Search,
   Edit2,
   Archive,
@@ -88,23 +88,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const activeGroups = groups.filter((g) => !g.archived);
   const totalActiveStudents = students.filter((s) => s.status !== 'inactive').length;
 
-  const currentMonthStr = new Date().toISOString().substring(0, 7);
+  const currentMonthStr = getLocalMonth();
   const monthRecords = attendanceRecords.filter((r) => r.date.startsWith(currentMonthStr));
   const totalLessonsConductedThisMonth = monthRecords.length;
-
-  // Global attendance rate (Present vs Absent)
-  let totalStatusEntries = 0;
-  let presentEntries = 0;
-  attendanceRecords.forEach((rec) => {
-    Object.values(rec.statusMap || {}).forEach((st) => {
-      totalStatusEntries++;
-      if (st === 'present') {
-        presentEntries++;
-      }
-    });
-  });
-  const globalAttendanceRate =
-    totalStatusEntries > 0 ? Math.round((presentEntries / totalStatusEntries) * 100) : 95;
 
   // Filter groups
   const filteredGroups = groups
@@ -297,19 +283,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
 
-        {/* Global Attendance Rate */}
-        <div className="bg-white dark:bg-slate-900 p-5 rounded-lg border-none shadow-xs transition-all duration-300">
+        {/* Total Teachers */}
+        <div
+          onClick={onNavigateTeachers}
+          className="bg-white dark:bg-slate-900 p-5 rounded-lg border-none shadow-xs transition-all duration-300 cursor-pointer hover:shadow-md hover:-translate-y-1 group"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Center Attendance</span>
-            <div className="w-8 h-8 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4" strokeWidth={2.2} />
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white">Total Teachers</span>
+            <div className="w-8 h-8 rounded-md bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+              <GraduationCap className="w-4 h-4" strokeWidth={2.2} />
             </div>
           </div>
-          <div className="mt-3">
-            <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
-              <AnimatedCounter value={globalAttendanceRate} suffix="%" durationMs={3000} />
+          <div className="mt-3 flex items-baseline justify-between">
+            <div>
+              <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+                <AnimatedCounter value={teachers.length} durationMs={3000} />
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">Active instructors</p>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">Average presence rate</p>
+            <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
+              Manage →
+            </span>
           </div>
         </div>
       </div>

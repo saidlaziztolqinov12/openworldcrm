@@ -16,6 +16,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { firebaseConfig } from '../lib/firebase';
 import { formatAuthLogin } from '../lib/authUtils';
+import { getLocalDate, getLocalMonth } from '../lib/dateUtils';
 import {
   collection,
   onSnapshot,
@@ -209,7 +210,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         );
 
-        // 4. Live Sync: attendance collections (attendance_records, attendance, sessions)
+        // 4. Live Sync: attendance collection (attendance_records)
         const handleAttendanceSnapshot = (snapshot: any) => {
           const itemsMap = new Map<string, AttendanceRecord>();
           snapshot.forEach((d: any) => {
@@ -221,8 +222,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('Attendance listener notice:', err);
         };
         unsubscribeAttendance = onSnapshot(query(collection(db, 'attendance_records')), handleAttendanceSnapshot, handleAttendanceError);
-        unsubscribeAttendance2 = onSnapshot(query(collection(db, 'attendance')), handleAttendanceSnapshot, handleAttendanceError);
-        unsubscribeSessions = onSnapshot(query(collection(db, 'sessions')), handleAttendanceSnapshot, handleAttendanceError);
 
         // 5. Live Sync: notifications collection (real-time Inbox)
         unsubscribeNotifications = onSnapshot(
@@ -312,8 +311,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubscribeGroups();
       unsubscribeStudents();
       unsubscribeAttendance();
-      unsubscribeAttendance2();
-      unsubscribeSessions();
       unsubscribeNotifications();
       unsubscribeLogs();
       unsubscribeSalaryAdvances();
@@ -697,8 +694,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateSalaryAdvance = async (id: string, advanceData: Partial<SalaryAdvance>): Promise<void> => {
-    await updateDoc(doc(db, 'salary_advances', id), advanceData);
-    setSalaryAdvances((prev) => prev.map((a) => (a.id === id ? { ...a, ...advanceData } : a)));
+    const existing = salaryAdvances.find((a) => a.id === id);
+    const payload = {
+      ...advanceData,
+      createdById: existing?.createdById || advanceData.createdById,
+      createdByName: existing?.createdByName || advanceData.createdByName,
+      createdAt: existing?.createdAt || advanceData.createdAt,
+      updatedAt: serverTimestamp()
+    };
+    await updateDoc(doc(db, 'salary_advances', id), payload);
+    setSalaryAdvances((prev) =>
+      prev.map((a) =>
+        a.id === id
+          ? {
+              ...a,
+              ...advanceData,
+              createdById: existing?.createdById || a.createdById,
+              createdByName: existing?.createdByName || a.createdByName,
+              createdAt: existing?.createdAt || a.createdAt,
+              updatedAt: new Date().toISOString()
+            }
+          : a
+      )
+    );
   };
 
   const deleteSalaryAdvance = async (id: string): Promise<void> => {
@@ -957,7 +975,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       (r) => r.groupId === record.groupId && r.date === record.date
     );
 
-    const recordId = record.id || existing?.id || `att-${Date.now()}`;
+    const recordId = record.id || existing?.id || doc(collection(db, 'attendance_records')).id;
     const cleanedRecords = (record.records || []).map((s) => ({
       studentId: s.studentId || '',
       studentName: s.studentName || '',
@@ -969,7 +987,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       groupId: record.groupId || '',
       groupName: record.groupName || '',
       teacherId: record.teacherId || '',
-      date: record.date || new Date().toISOString(),
+      date: record.date || getLocalDate(),
       lessonNumber: record.lessonNumber || 1,
       records: cleanedRecords,
       statusMap: record.statusMap || {},
@@ -981,9 +999,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: existing?.createdAt || new Date().toISOString()
     };
 
-    await setDoc(doc(db, 'attendance', recordId), sanitizedPayload);
     await setDoc(doc(db, 'attendance_records', recordId), sanitizedPayload);
-    await setDoc(doc(db, 'sessions', recordId), sanitizedPayload);
 
     setAttendanceRecords((prev) => {
       const idx = prev.findIndex((r) => r.id === recordId);
@@ -1062,8 +1078,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteTeacher = async (id: string): Promise<void> => {
-    await deleteDoc(doc(db, 'users', id));
-    setUsers((prev) => prev.filter((u) => u.id !== id));
+    await updateDoc(doc(db, 'users', id), {
+      status: 'inactive',
+      isActive: false,
+      updatedAt: serverTimestamp()
+    });
+    setUsers((prev) =>
+      prev.map((u) => (u.id === id ? { ...u, status: 'inactive', isActive: false } : u))
+    );
   };
 
   // Notification methods
@@ -1185,6 +1207,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const approveTransferRequest = async (notificationId: string): Promise<void> => {
     const notif = notifications.find((n) => n.id === notificationId);
     if (!notif) return;
+    if (notif.status && notif.status !== 'PENDING') return;
 
     const studentId = notif.studentId;
     const sourceGroupId = notif.sourceGroupId || notif.currentGroupId || notif.groupId;

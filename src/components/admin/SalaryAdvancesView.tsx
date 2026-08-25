@@ -3,6 +3,7 @@ import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { SalaryAdvance, User } from '../../types';
 import { TeacherAvatar } from '../common/TeacherAvatar';
+import { getLocalDate } from '../../lib/dateUtils';
 import {
   Wallet,
   Plus,
@@ -62,7 +63,7 @@ export const SalaryAdvancesView: React.FC = () => {
   // Form states
   const [formTeacherId, setFormTeacherId] = useState<string>('');
   const [formAmountInput, setFormAmountInput] = useState<string>('');
-  const [formDate, setFormDate] = useState<string>(new Date().toISOString().substring(0, 10));
+  const [formDate, setFormDate] = useState<string>(getLocalDate());
   const [formNote, setFormNote] = useState<string>('');
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -214,7 +215,7 @@ export const SalaryAdvancesView: React.FC = () => {
     setEditingAdvance(null);
     setFormTeacherId(defaultTeacherId || teachers[0]?.id || '');
     setFormAmountInput('');
-    setFormDate(new Date().toISOString().substring(0, 10));
+    setFormDate(getLocalDate());
     setFormNote('');
     setFormError(null);
     setIsModalOpen(true);
@@ -224,7 +225,7 @@ export const SalaryAdvancesView: React.FC = () => {
     setEditingAdvance(adv);
     setFormTeacherId(adv.teacherId);
     setFormAmountInput(adv.amount.toLocaleString('en-US').replace(/,/g, ' '));
-    setFormDate(adv.date || new Date().toISOString().substring(0, 10));
+    setFormDate(adv.date || getLocalDate());
     setFormNote(adv.note || '');
     setFormError(null);
     setIsModalOpen(true);

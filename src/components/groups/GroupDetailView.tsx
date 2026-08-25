@@ -19,6 +19,7 @@ import { GroupModal } from './GroupModal';
 import { MonthlyAttendanceSheet } from './MonthlyAttendanceSheet';
 import { GroupArchiveTab } from './GroupArchiveTab';
 import { createSmsUri } from '../../lib/sms';
+import { getLocalDate } from '../../lib/dateUtils';
 import confetti from 'canvas-confetti';
 import { AnimatedCounter } from '../common/AnimatedCounter';
 import {
@@ -227,23 +228,31 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
     setSavingAttendance(true);
 
     try {
-      const recordsList = groupStudents.map((s) => ({
-        studentId: s.id || s.studentId || '',
-        studentName: `${s.firstName || ''} ${s.surname || ''}`.trim() || s.studentId || '',
-        status: statusMap[s.id] || 'present'
-      }));
+      const activeMarkedStudentIds = Object.keys(statusMap);
+      if (activeMarkedStudentIds.length === 0) {
+        setAttendanceError("Please mark attendance for at least one student before saving.");
+        setSavingAttendance(false);
+        return;
+      }
+
+      const recordsList = groupStudents
+        .filter((s) => statusMap[s.id])
+        .map((s) => ({
+          studentId: s.id || s.studentId || '',
+          studentName: `${s.firstName || ''} ${s.surname || ''}`.trim() || s.studentId || '',
+          status: statusMap[s.id]
+        }));
 
       const existing = attendanceRecords.find(
         (r) => r.groupId === group.id && r.date === selectedDate
       );
-      const recordId = existing?.id || `att-${Date.now()}`;
 
       await saveAttendanceRecord({
-        id: recordId,
+        ...(existing?.id ? { id: existing.id } : {}),
         groupId: group.id || '',
         groupName: group.name || '',
         teacherId: group.teacherId || '',
-        date: selectedDate || new Date().toISOString(),
+        date: selectedDate || getLocalDate(),
         lessonNumber: 1,
         records: recordsList,
         statusMap,
