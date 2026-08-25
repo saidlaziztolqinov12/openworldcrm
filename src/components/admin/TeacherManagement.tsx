@@ -26,6 +26,7 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({ onSelectGr
   const [teacherToEdit, setTeacherToEdit] = useState<User | null>(null);
   const [teacherToDelete, setTeacherToDelete] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const handleDeleteTeacherConfirm = async () => {
     if (!teacherToDelete) return;
@@ -42,6 +43,12 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({ onSelectGr
 
   return (
     <div className="space-y-6 pb-20 md:pb-12 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 overflow-x-hidden">
+      {toastMessage && (
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-emerald-800 dark:text-emerald-200 text-xs font-bold shadow-md flex items-center justify-between animate-in fade-in">
+          <span>{toastMessage}</span>
+          <button onClick={() => setToastMessage(null)} className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400">✕</button>
+        </div>
+      )}
       {/* Header */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-lg border-none shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
         <div>
@@ -152,6 +159,10 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({ onSelectGr
           setTeacherToEdit(null);
         }}
         teacherToEdit={teacherToEdit}
+        onSuccess={() => {
+          setToastMessage(teacherToEdit ? 'Teacher account updated successfully.' : 'Account created successfully with login credentials.');
+          setTimeout(() => setToastMessage(null), 4000);
+        }}
       />
 
       {/* Delete Confirmation Modal */}

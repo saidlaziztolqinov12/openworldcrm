@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../../types';
 import { useData } from '../../context/DataContext';
+import { formatAuthLogin } from '../../lib/authUtils';
 import { X, ShieldCheck, Mail, Phone, Lock, User as UserIcon, Eye, EyeOff } from 'lucide-react';
 import { PhoneInput } from '../common/PhoneInput';
 
@@ -20,6 +21,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const { addAdmin, updateTeacher } = useData();
 
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('+998 ');
   const [password, setPassword] = useState('');
@@ -33,12 +35,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
     if (adminToEdit) {
       setName(adminToEdit.name || '');
+      setUsername(adminToEdit.username || adminToEdit.email?.split('@')[0] || '');
       setEmail(adminToEdit.email || '');
       setPhone(adminToEdit.phone || '+998 ');
       setPassword(adminToEdit.password || '');
       setTitle(adminToEdit.title || 'Administrator');
     } else {
       setName('');
+      setUsername('');
       setEmail('');
       setPhone('+998 ');
       setPassword('');
@@ -55,8 +59,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       setError('Please provide full name for the admin.');
       return;
     }
-    if (!email.trim()) {
-      setError('Email address is required for admin sign-in.');
+    const cleanUsername = username.trim();
+    if (!cleanUsername) {
+      setError('Login/Username is required for admin sign-in.');
       return;
     }
     const cleanPhone = phone.trim();
@@ -71,10 +76,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
     setLoading(true);
     try {
+      const resolvedEmail = formatAuthLogin(cleanUsername);
       if (adminToEdit) {
         await updateTeacher(adminToEdit.id, {
           name: name.trim(),
-          email: email.trim().toLowerCase(),
+          username: cleanUsername.toLowerCase(),
+          email: resolvedEmail,
           phone: cleanPhone,
           title: title.trim(),
           password: password.trim() ? password.trim() : adminToEdit.password
@@ -82,7 +89,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       } else {
         await addAdmin({
           name: name.trim(),
-          email: email.trim().toLowerCase(),
+          username: cleanUsername.toLowerCase(),
+          email: resolvedEmail,
           phone: cleanPhone,
           title: title.trim(),
           password: password.trim(),
@@ -92,9 +100,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       }
       if (onSuccess) onSuccess();
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError('Failed to save admin account.');
+      setError(err?.message || 'Failed to save admin account.');
     } finally {
       setLoading(false);
     }
@@ -150,16 +158,16 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Email Address</label>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Login / Username</label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                 <Mail className="w-4 h-4" />
               </span>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@openworld.edu"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="e.g. jamshid or admin_2"
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
                 required
               />

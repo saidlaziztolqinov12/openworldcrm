@@ -187,7 +187,7 @@ export const AdminManagement: React.FC = () => {
         }}
         adminToEdit={adminToEdit}
         onSuccess={() => {
-          setToastMessage(adminToEdit ? 'Admin account updated successfully.' : 'Admin account created successfully.');
+          setToastMessage(adminToEdit ? 'Admin account updated successfully.' : 'Account created successfully with login credentials.');
           setTimeout(() => setToastMessage(null), 3500);
         }}
       />

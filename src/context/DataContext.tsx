@@ -12,6 +12,10 @@ import {
   Installment
 } from '../types';
 import { db } from '../firebase.config';
+import { initializeApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { firebaseConfig } from '../lib/firebase';
+import { formatAuthLogin } from '../lib/authUtils';
 import {
   collection,
   onSnapshot,
@@ -34,7 +38,7 @@ import {
   INITIAL_GROUP_ACTIVITY_LOGS,
   INITIAL_SALARY_ADVANCES,
   seedInitialFirestoreData
-} from '../lib/seedData';
+} from '../lib/initialData';
 import { useAuth } from './AuthContext';
 import { generateUniqueStudentId } from '../utils/studentId';
 import { sendTelegramMessage } from '../services/telegram';
@@ -637,22 +641,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
 
-  const addAdmin = async (adminData: Omit<User, 'id' | 'createdAt' | 'role'>): Promise<string> => {
-    const id = `admin-${Date.now()}`;
+  const addAdmin = async (adminData: Omit<User, 'id' | 'createdAt' | 'role'> & { username?: string }): Promise<string> => {
+    const loginInput = adminData.username || adminData.email || adminData.name;
+    const formattedLoginEmail = formatAuthLogin(loginInput);
+    let newUid = `admin-${Date.now()}`;
+
+    try {
+      const secondaryApp = initializeApp(firebaseConfig, `SecondaryAuth_${Date.now()}`);
+      const secondaryAuth = getAuth(secondaryApp);
+      const newCredentials = await createUserWithEmailAndPassword(secondaryAuth, formattedLoginEmail, adminData.password || 'admin123');
+      newUid = newCredentials.user.uid;
+      await signOut(secondaryAuth);
+    } catch (e) {
+      console.warn('Secondary auth creation notice:', e);
+    }
+
     const newAdmin: User = {
       ...adminData,
-      id,
+      uid: newUid,
+      id: newUid,
+      username: (adminData.username || loginInput).trim().toLowerCase(),
+      email: formattedLoginEmail,
       role: 'admin',
-      avatarColor: adminData.avatarColor || 'bg-indigo-600',
+      avatarColor: adminData.avatarColor || 'bg-purple-600',
       createdAt: new Date().toISOString()
     };
     setUsers((prev) => [...prev, newAdmin]);
     try {
-      await setDoc(doc(db, 'users', id), newAdmin);
+      await setDoc(doc(db, 'users', newUid), {
+        ...newAdmin,
+        createdAt: serverTimestamp()
+      });
     } catch (e) {
       console.warn('Firestore write notice for addAdmin:', e);
     }
-    return id;
+    return newUid;
   };
 
   const addSalaryAdvance = async (advanceData: Omit<SalaryAdvance, 'id' | 'createdAt'>): Promise<string> => {
@@ -1054,11 +1077,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const addTeacher = async (teacherData: Omit<User, 'id' | 'createdAt'>): Promise<string> => {
-    const id = `teacher-${Date.now()}`;
+  const addTeacher = async (teacherData: Omit<User, 'id' | 'createdAt'> & { username?: string }): Promise<string> => {
+    const loginInput = teacherData.username || teacherData.email || teacherData.name;
+    const formattedLoginEmail = formatAuthLogin(loginInput);
+    let newUid = `teacher-${Date.now()}`;
+
+    try {
+      const secondaryApp = initializeApp(firebaseConfig, `SecondaryAuth_${Date.now()}`);
+      const secondaryAuth = getAuth(secondaryApp);
+      const newCredentials = await createUserWithEmailAndPassword(secondaryAuth, formattedLoginEmail, teacherData.password || 'teacher123');
+      newUid = newCredentials.user.uid;
+      await signOut(secondaryAuth);
+    } catch (e) {
+      console.warn('Secondary auth creation notice:', e);
+    }
+
     const newTeacher: User = {
       ...teacherData,
-      id,
+      uid: newUid,
+      id: newUid,
+      username: (teacherData.username || loginInput).trim().toLowerCase(),
+      email: formattedLoginEmail,
       role: 'teacher',
       avatarColor: teacherData.avatarColor || 'bg-indigo-600',
       createdAt: new Date().toISOString()
@@ -1066,11 +1105,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setUsers((prev) => [...prev, newTeacher]);
     try {
-      await setDoc(doc(db, 'users', id), newTeacher);
+      await setDoc(doc(db, 'users', newUid), {
+        ...newTeacher,
+        createdAt: serverTimestamp()
+      });
     } catch (e) {
       console.warn('Firestore write notice for addTeacher:', e);
     }
-    return id;
+    return newUid;
   };
 
   const updateTeacher = async (id: string, teacherData: Partial<User>): Promise<void> => {

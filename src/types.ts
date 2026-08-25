@@ -2,9 +2,11 @@ export type UserRole = 'super_admin' | 'admin' | 'teacher';
 
 export interface User {
   id: string;
+  uid?: string;
   name: string;
   firstName?: string;
   surname?: string;
+  username?: string;
   email: string;
   role: UserRole;
   phone: string;
