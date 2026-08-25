@@ -264,7 +264,6 @@ export const SalaryAdvancesView: React.FC = () => {
     setFormError(null);
 
     try {
-      // Package full teacher metadata along with record
       const advancePayload = {
         teacherId: formTeacherId,
         teacherName,
@@ -276,9 +275,9 @@ export const SalaryAdvancesView: React.FC = () => {
         amount: cleanAmount,
         date: formDate,
         monthYear,
-        note: formNote.trim() || "",
-        createdById: currentUser?.id,
-        createdByName: currentUser?.name
+        note: formNote ? formNote.trim() : '',
+        createdById: currentUser?.id || 'admin-1',
+        createdByName: currentUser?.name || 'Administrator'
       };
 
       if (editingAdvance) {
