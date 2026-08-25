@@ -276,7 +276,7 @@ export const SalaryAdvancesView: React.FC = () => {
         amount: cleanAmount,
         date: formDate,
         monthYear,
-        note: formNote.trim() || undefined,
+        note: formNote.trim() || "",
         createdById: currentUser?.id,
         createdByName: currentUser?.name
       };

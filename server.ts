@@ -36,11 +36,9 @@ if (!getAdminApps().length) {
   }
 }
 
-const BOT_TOKEN = process.env.VITE_TELEGRAM_BOT_TOKEN || '8729008792:AAHQe2GrZRdx97O-sxNrJtiW02vXaTgN_H4';
-
-async function sendTelegramReply(chatId: number | string, text: string) {
+async function sendTelegramReply(token: string, chatId: number | string, text: string) {
   try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -56,6 +54,12 @@ async function sendTelegramReply(chatId: number | string, text: string) {
 
 async function handleTelegramWebhookLogic(req: any, res: any) {
   try {
+    // Verify x-telegram-bot-api-secret-token header
+    const secretToken = req.headers['x-telegram-bot-api-secret-token'];
+    if (!process.env.TELEGRAM_WEBHOOK_SECRET || secretToken !== process.env.TELEGRAM_WEBHOOK_SECRET) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
     const update = req.body;
     if (!update || !update.message) {
       return res.status(200).json({ status: "ok" });
@@ -64,6 +68,12 @@ async function handleTelegramWebhookLogic(req: any, res: any) {
     const message = update.message;
     const chatId = message.chat.id;
     const text = message.text ? message.text.trim() : "";
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+
+    if (!token) {
+      console.error("Missing TELEGRAM_BOT_TOKEN");
+      return res.status(200).json({ status: "ok" });
+    }
 
     if (!text) {
       return res.status(200).json({ status: "ok" });
@@ -71,17 +81,15 @@ async function handleTelegramWebhookLogic(req: any, res: any) {
 
     if (text.startsWith("/start")) {
       const greeting = "Assalomu alaykum! <b>Open World Academy</b> tizimiga xush kelibsiz.\n\nFarzandingizning davomatini kuzatib borish uchun o'quv markazimizga taqdim etgan <b>telefon raqamingizni</b> yuboring:\n\n<i>(Masalan: +998901234567 yoki 901234567)</i>";
-      await sendTelegramReply(chatId, greeting);
+      await sendTelegramReply(token, chatId, greeting);
       return res.status(200).json({ status: "ok" });
     }
 
-    // Check if message contains digits
+    // Check if message contains digits & exact phone matching
     const digitsOnly = text.replace(/\D/g, "");
     if (digitsOnly.length < 5) {
       return res.status(200).json({ status: "ok" });
     }
-
-    const last9 = digitsOnly.slice(-9);
 
     // Fetch all students and groups from Firestore
     const studentsSnapshot = await getDocs(collection(db, "students"));
@@ -99,7 +107,9 @@ async function handleTelegramWebhookLogic(req: any, res: any) {
       const sData = docSnap.data();
       const pPhone = (sData.parentPhone || sData.phone || "").toString();
       const pPhoneDigits = pPhone.replace(/\D/g, "");
-      if (pPhoneDigits.endsWith(last9)) {
+      
+      // Exact phone number matching
+      if (pPhoneDigits && pPhoneDigits === digitsOnly) {
         const studentName = `${sData.firstName || ''} ${sData.surname || ''}`.trim() || "O'quvchi";
         const groupName = sData.groupId ? groupsMap.get(sData.groupId) || "Guruh" : "Guruhsiz";
         matchedStudents.push({
@@ -112,7 +122,7 @@ async function handleTelegramWebhookLogic(req: any, res: any) {
 
     if (matchedStudents.length === 0) {
       const notFoundText = "❌ Ushbu telefon raqami tizimda topilmadi.\n\nIltimos, raqamni to'g'ri kiritganingizni tekshirib qayta yuboring yoki administratorga murojaat qiling.";
-      await sendTelegramReply(chatId, notFoundText);
+      await sendTelegramReply(token, chatId, notFoundText);
     } else {
       // Update all matched student documents with telegramChatId
       for (const student of matchedStudents) {
@@ -125,13 +135,13 @@ async function handleTelegramWebhookLogic(req: any, res: any) {
 
       const studentNamesList = matchedStudents.map(s => `• <b>${s.name}</b> (${s.groupName})`).join('\n');
       const successText = `✅ <b>Muvaffaqiyatli ulandi!</b>\n\n👤 <b>O'quvchi(lar):</b>\n${studentNamesList}\n\nEndi dars davomati va o'qituvchi izohlari muntazam ravishda sizga yuborib turiladi.`;
-      await sendTelegramReply(chatId, successText);
+      await sendTelegramReply(token, chatId, successText);
     }
 
     return res.status(200).json({ status: "ok" });
   } catch (err) {
     console.error("Error processing telegram webhook:", err);
-    return res.status(200).json({ status: "ok" }); // Always respond with HTTP 200 OK to Telegram
+    return res.status(200).json({ status: "ok" });
   }
 }
 
@@ -141,12 +151,57 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Server-side Telegram Relay endpoint
+  app.post("/api/send-telegram", async (req, res) => {
+    try {
+      const { chat_id, text, parse_mode } = req.body || {};
+      const token = process.env.TELEGRAM_BOT_TOKEN;
+      if (!token) {
+        return res.status(500).json({ error: 'TELEGRAM_BOT_TOKEN not configured' });
+      }
+      if (!chat_id || !text) {
+        return res.status(400).json({ error: 'Missing chat_id or text' });
+      }
+      const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id,
+          text,
+          parse_mode: parse_mode || 'HTML'
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        return res.status(response.status).json(data);
+      }
+      res.json({ success: true, data });
+    } catch (err: any) {
+      console.error("Error in /api/send-telegram:", err);
+      res.status(500).json({ error: err.message || "Failed to send telegram message" });
+    }
+  });
+
   // Telegram webhook endpoints
   app.post("/api/telegram-webhook", handleTelegramWebhookLogic);
   app.post("/api/telegram-webhook.js", handleTelegramWebhookLogic);
 
-  // Send Push Notification endpoint
+  // Send Push Notification endpoint with secured CORS and no sensitive tokens in response
   app.post("/api/send-push", async (req, res) => {
+    const origin = req.headers.origin;
+    if (origin && (origin.includes('run.app') || origin.includes('localhost') || origin.includes('ai.studio'))) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+      res.setHeader('Access-Control-Allow-Origin', 'https://ais-dev-g3246sj4v3smwahqwra5jh-1047176565098.asia-southeast1.run.app');
+    }
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
     try {
       const { recipientUserId, token, fcmToken, title, body, data } = req.body || {};
       let targetToken = token || fcmToken;
@@ -180,18 +235,18 @@ async function startServer() {
         }
       };
 
-      let response;
       try {
-        response = await getMessaging().send(message);
+        await getMessaging().send(message);
       } catch (err: any) {
         console.warn('Admin messaging send failed in server.ts:', err);
         throw err;
       }
 
-      res.json({ success: true, response, token: targetToken });
+      // Return { success: true } only, without sensitive device tokens
+      res.json({ success: true });
     } catch (err: any) {
       console.error("Error in /api/send-push:", err);
-      res.status(500).json({ error: err.message || "Failed to send push notification" });
+      res.status(500).json({ success: false, error: err.message || "Failed to send push notification" });
     }
   });
 

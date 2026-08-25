@@ -256,6 +256,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
       console.error('Error saving attendance:', error);
+      setAttendanceError("Failed to save attendance. Please try again.");
     } finally {
       setSavingAttendance(false);
     }

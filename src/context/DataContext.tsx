@@ -189,6 +189,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
           (err) => {
             console.warn('Groups listener notice:', err);
+            setGroups([]);
           }
         );
 
@@ -202,6 +203,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
           (err) => {
             console.warn('Students listener notice:', err);
+            setStudents([]);
           }
         );
 
@@ -213,9 +215,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
           setAttendanceRecords(Array.from(itemsMap.values()));
         };
-        unsubscribeAttendance = onSnapshot(query(collection(db, 'attendance_records')), handleAttendanceSnapshot);
-        unsubscribeAttendance2 = onSnapshot(query(collection(db, 'attendance')), handleAttendanceSnapshot);
-        unsubscribeSessions = onSnapshot(query(collection(db, 'sessions')), handleAttendanceSnapshot);
+        const handleAttendanceError = (err: any) => {
+          console.warn('Attendance listener notice:', err);
+        };
+        unsubscribeAttendance = onSnapshot(query(collection(db, 'attendance_records')), handleAttendanceSnapshot, handleAttendanceError);
+        unsubscribeAttendance2 = onSnapshot(query(collection(db, 'attendance')), handleAttendanceSnapshot, handleAttendanceError);
+        unsubscribeSessions = onSnapshot(query(collection(db, 'sessions')), handleAttendanceSnapshot, handleAttendanceError);
 
         // 5. Live Sync: notifications collection (real-time Inbox)
         unsubscribeNotifications = onSnapshot(
@@ -641,7 +646,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
 
-  const addAdmin = async (adminData: Omit<User, 'id' | 'createdAt' | 'role'> & { username?: string }): Promise<string> => {
+  const addAdmin = async (adminData: Omit<User, 'id' | 'createdAt' | 'role'> & { username?: string; password?: string }): Promise<string> => {
     const loginInput = adminData.username || adminData.email || adminData.name;
     const formattedLoginEmail = formatAuthLogin(loginInput);
     let newUid = `admin-${Date.now()}`;
@@ -666,54 +671,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       avatarColor: adminData.avatarColor || 'bg-purple-600',
       createdAt: new Date().toISOString()
     };
+    await setDoc(doc(db, 'users', newUid), {
+      ...newAdmin,
+      createdAt: serverTimestamp()
+    });
     setUsers((prev) => [...prev, newAdmin]);
-    try {
-      await setDoc(doc(db, 'users', newUid), {
-        ...newAdmin,
-        createdAt: serverTimestamp()
-      });
-    } catch (e) {
-      console.warn('Firestore write notice for addAdmin:', e);
-    }
     return newUid;
   };
 
   const addSalaryAdvance = async (advanceData: Omit<SalaryAdvance, 'id' | 'createdAt'>): Promise<string> => {
-    try {
-      const docRef = await addDoc(collection(db, 'salary_advances'), {
-        ...advanceData,
-        createdAt: serverTimestamp()
-      });
-      return docRef.id;
-    } catch (e) {
-      console.warn('Firestore write notice for addSalaryAdvance:', e);
-      const id = `advance-${Date.now()}`;
-      const newAdvance: SalaryAdvance = {
-        ...advanceData,
-        id,
-        createdAt: new Date().toISOString()
-      };
-      setSalaryAdvances((prev) => [newAdvance, ...prev]);
-      return id;
-    }
+    const docRef = await addDoc(collection(db, 'salary_advances'), {
+      ...advanceData,
+      createdAt: serverTimestamp()
+    });
+    const id = docRef.id;
+    const newAdvance: SalaryAdvance = {
+      ...advanceData,
+      id,
+      createdAt: new Date().toISOString()
+    };
+    setSalaryAdvances((prev) => [newAdvance, ...prev]);
+    return id;
   };
 
   const updateSalaryAdvance = async (id: string, advanceData: Partial<SalaryAdvance>): Promise<void> => {
+    await updateDoc(doc(db, 'salary_advances', id), advanceData);
     setSalaryAdvances((prev) => prev.map((a) => (a.id === id ? { ...a, ...advanceData } : a)));
-    try {
-      await updateDoc(doc(db, 'salary_advances', id), advanceData);
-    } catch (e) {
-      console.warn('Firestore update notice for updateSalaryAdvance:', e);
-    }
   };
 
   const deleteSalaryAdvance = async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, 'salary_advances', id));
     setSalaryAdvances((prev) => prev.filter((a) => a.id !== id));
-    try {
-      await deleteDoc(doc(db, 'salary_advances', id));
-    } catch (e) {
-      console.warn('Firestore delete notice for deleteSalaryAdvance:', e);
-    }
   };
 
 
@@ -745,12 +733,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: new Date().toISOString()
     };
 
+    await setDoc(doc(db, 'groups', id), newGroup);
     setGroups((prev) => [...prev, newGroup]);
-    try {
-      await setDoc(doc(db, 'groups', id), newGroup);
-    } catch (e) {
-      console.warn('Firestore write notice for addGroup:', e);
-    }
 
     // Auto-log group creation activity in group_logs
     const actorId = currentUser?.id || 'admin-1';
@@ -779,12 +763,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateGroup = async (id: string, groupData: Partial<Group>): Promise<void> => {
     const prevGroup = groups.find((g) => g.id === id);
+    await updateDoc(doc(db, 'groups', id), groupData);
     setGroups((prev) => prev.map((g) => (g.id === id ? { ...g, ...groupData } : g)));
-    try {
-      await updateDoc(doc(db, 'groups', id), groupData);
-    } catch (e) {
-      console.warn('Firestore write notice for updateGroup:', e);
-    }
 
     // If teacher was updated or assigned
     if (groupData.teacherName && prevGroup && groupData.teacherName !== prevGroup.teacherName) {
@@ -808,6 +788,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 1. Unassign all students currently assigned to this group (set groupId to null)
     const affectedStudents = students.filter((s) => s.groupId === groupId);
 
+    for (const student of affectedStudents) {
+      await updateDoc(doc(db, 'students', student.id), {
+        groupId: null,
+        previousGroupId: groupId,
+        status: 'active'
+      });
+    }
+
+    // 2. Delete group from Firestore
+    await deleteDoc(doc(db, 'groups', groupId));
+
+    // 3. Update local state
     setStudents((prev) =>
       prev.map((s) =>
         s.groupId === groupId
@@ -815,28 +807,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           : s
       )
     );
-
-    for (const student of affectedStudents) {
-      try {
-        await updateDoc(doc(db, 'students', student.id), {
-          groupId: null,
-          previousGroupId: groupId,
-          status: 'active'
-        });
-      } catch (e) {
-        console.warn(`Firestore update notice for student ${student.id}:`, e);
-      }
-    }
-
-    // 2. Delete group from local state
     setGroups((prev) => prev.filter((g) => g.id !== groupId));
-
-    // 3. Delete group from Firestore
-    try {
-      await deleteDoc(doc(db, 'groups', groupId));
-    } catch (e) {
-      console.warn(`Firestore delete notice for group ${groupId}:`, e);
-    }
   };
 
   const reassignTeacher = async (groupId: string, teacherId: string, teacherName: string): Promise<void> => {
@@ -863,12 +834,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       status: studentData.status || 'active'
     };
 
+    await setDoc(doc(db, 'students', id), newStudent);
     setStudents((prev) => [...prev, newStudent]);
-    try {
-      await setDoc(doc(db, 'students', id), newStudent);
-    } catch (e) {
-      console.warn('Firestore write notice for addStudent:', e);
-    }
 
     // Auto-log student enrollment if assigned directly to a group
     if (newStudent.groupId) {
@@ -900,30 +867,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (count > 0) {
-      setStudents(updatedStudents);
       for (const s of updatedStudents) {
-        try {
-          await updateDoc(doc(db, 'students', s.id), { studentId: s.studentId });
-        } catch (e) {
-          console.warn('Firestore migration notice for student:', s.id, e);
-        }
+        await updateDoc(doc(db, 'students', s.id), { studentId: s.studentId });
       }
+      setStudents(updatedStudents);
     }
     return count;
   };
 
   const updateStudent = async (id: string, studentData: Partial<Student>): Promise<void> => {
+    await updateDoc(doc(db, 'students', id), studentData);
     setStudents((prev) => prev.map((s) => (s.id === id ? { ...s, ...studentData } : s)));
-    try {
-      await updateDoc(doc(db, 'students', id), studentData);
-    } catch (e) {
-      console.warn('Firestore write notice for updateStudent:', e);
-    }
   };
 
   const transferStudent = async (studentId: string, newGroupId: string | null): Promise<void> => {
     const targetStudent = students.find((s) => s.id === studentId);
-    const previousGroupId = targetStudent?.groupId || undefined;
+    const previousGroupId = targetStudent?.groupId || null;
     const prevGroup = groups.find((g) => g.id === previousGroupId);
     const newGroup = groups.find((g) => g.id === newGroupId);
     const studentName = targetStudent ? `${targetStudent.firstName} ${targetStudent.surname}` : 'Student';
@@ -935,12 +894,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       status: 'active'
     };
 
+    await updateDoc(doc(db, 'students', studentId), updatePayload);
     setStudents((prev) => prev.map((s) => (s.id === studentId ? { ...s, ...updatePayload } : s)));
-    try {
-      await updateDoc(doc(db, 'students', studentId), updatePayload);
-    } catch (e) {
-      console.warn('Firestore write notice for transferStudent:', e);
-    }
 
     const actorId = currentUser?.id || 'staff';
     const actorName = currentUser?.name || 'Staff Member';
@@ -989,12 +944,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteStudent = async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, 'students', id));
     setStudents((prev) => prev.filter((s) => s.id !== id));
-    try {
-      await deleteDoc(doc(db, 'students', id));
-    } catch (e) {
-      console.warn('Firestore delete notice for deleteStudent:', e);
-    }
   };
 
   const saveAttendanceRecord = async (
@@ -1028,6 +979,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: existing?.createdAt || new Date().toISOString()
     };
 
+    await setDoc(doc(db, 'attendance', recordId), sanitizedPayload);
+    await setDoc(doc(db, 'attendance_records', recordId), sanitizedPayload);
+    await setDoc(doc(db, 'sessions', recordId), sanitizedPayload);
+
     setAttendanceRecords((prev) => {
       const idx = prev.findIndex((r) => r.id === recordId);
       if (idx >= 0) {
@@ -1038,46 +993,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [...prev, sanitizedPayload];
     });
 
-    try {
-      await setDoc(doc(db, 'attendance', recordId), sanitizedPayload);
-      await setDoc(doc(db, 'attendance_records', recordId), sanitizedPayload);
-      await setDoc(doc(db, 'sessions', recordId), sanitizedPayload);
+    // Trigger Telegram notifications for students with telegramChatId / parentTelegramId
+    const dateStr = sanitizedPayload.date;
+    const statusMap = sanitizedPayload.statusMap || {};
+    const commentsMap = sanitizedPayload.commentsMap || {};
 
-      // Trigger Telegram notifications for students with telegramChatId / parentTelegramId
-      const dateStr = sanitizedPayload.date;
-      const statusMap = sanitizedPayload.statusMap || {};
-      const commentsMap = sanitizedPayload.commentsMap || {};
-
-      for (const [studentId, status] of Object.entries(statusMap)) {
-        const student = students.find((s) => s.id === studentId);
-        if (student && (student.telegramChatId || student.parentTelegramId)) {
-          const chatId = student.telegramChatId || student.parentTelegramId;
-          const score = sanitizedPayload.marksMap?.[studentId];
-          const comment = commentsMap[studentId] || '';
-          const studentName = `${student.firstName} ${student.surname}`;
-          const text = formatAttendanceNotification(studentName, dateStr, status, score, comment);
-          
-          sendTelegramMessage(chatId, text).catch((err) => {
-            console.error('Failed to send Telegram message:', err);
-          });
-        }
+    for (const [studentId, status] of Object.entries(statusMap)) {
+      const student = students.find((s) => s.id === studentId);
+      if (student && (student.telegramChatId || student.parentTelegramId)) {
+        const chatId = student.telegramChatId || student.parentTelegramId;
+        const score = sanitizedPayload.marksMap?.[studentId];
+        const comment = commentsMap[studentId] || '';
+        const studentName = `${student.firstName} ${student.surname}`;
+        const text = formatAttendanceNotification(studentName, dateStr, status, score, comment);
+        
+        sendTelegramMessage(chatId, text).catch((err) => {
+          console.error('Failed to send Telegram message:', err);
+        });
       }
-    } catch (error) {
-      console.error('Error saving attendance:', error);
     }
     return recordId;
   };
 
   const deleteAttendanceRecord = async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, 'attendance_records', id));
     setAttendanceRecords((prev) => prev.filter((r) => r.id !== id));
-    try {
-      await deleteDoc(doc(db, 'attendance_records', id));
-    } catch (e) {
-      console.warn('Firestore delete notice for deleteAttendanceRecord:', e);
-    }
   };
 
-  const addTeacher = async (teacherData: Omit<User, 'id' | 'createdAt'> & { username?: string }): Promise<string> => {
+  const addTeacher = async (teacherData: Omit<User, 'id' | 'createdAt'> & { username?: string; password?: string }): Promise<string> => {
     const loginInput = teacherData.username || teacherData.email || teacherData.name;
     const formattedLoginEmail = formatAuthLogin(loginInput);
     let newUid = `teacher-${Date.now()}`;
@@ -1103,34 +1046,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: new Date().toISOString()
     };
 
+    await setDoc(doc(db, 'users', newUid), {
+      ...newTeacher,
+      createdAt: serverTimestamp()
+    });
     setUsers((prev) => [...prev, newTeacher]);
-    try {
-      await setDoc(doc(db, 'users', newUid), {
-        ...newTeacher,
-        createdAt: serverTimestamp()
-      });
-    } catch (e) {
-      console.warn('Firestore write notice for addTeacher:', e);
-    }
     return newUid;
   };
 
   const updateTeacher = async (id: string, teacherData: Partial<User>): Promise<void> => {
+    await updateDoc(doc(db, 'users', id), teacherData);
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...teacherData } : u)));
-    try {
-      await updateDoc(doc(db, 'users', id), teacherData);
-    } catch (e) {
-      console.warn('Firestore write notice for updateTeacher:', e);
-    }
   };
 
   const deleteTeacher = async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, 'users', id));
     setUsers((prev) => prev.filter((u) => u.id !== id));
-    try {
-      await deleteDoc(doc(db, 'users', id));
-    } catch (e) {
-      console.warn('Firestore delete notice for deleteTeacher:', e);
-    }
   };
 
   // Notification methods

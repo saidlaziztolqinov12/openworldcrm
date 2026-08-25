@@ -452,6 +452,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <TeacherModal
         isOpen={isTeacherModalOpen}
         onClose={() => setIsTeacherModalOpen(false)}
+        onSuccess={() => {
+          setToastMessage('Account created successfully with login credentials.');
+          setTimeout(() => setToastMessage(null), 3500);
+        }}
       />
 
       {/* Delete Group Strict Confirmation Modal */}

@@ -16,6 +16,7 @@ export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 let dbInstance: Firestore;
 try {
   dbInstance = initializeFirestore(app, {
+    ignoreUndefinedProperties: true,
     experimentalForceLongPolling: true,
     experimentalAutoDetectLongPolling: true,
   });

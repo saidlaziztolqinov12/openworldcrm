@@ -31,12 +31,16 @@ async function sendTelegramReply(token: string, chatId: number | string, text: s
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Enable CORS / pre-flight handling
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // Explicitly handle Telegram POST updates
+  // Verify x-telegram-bot-api-secret-token header
+  const secretToken = req.headers['x-telegram-bot-api-secret-token'];
+  if (!process.env.TELEGRAM_WEBHOOK_SECRET || secretToken !== process.env.TELEGRAM_WEBHOOK_SECRET) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
   if (req.method === 'POST') {
     try {
       const body = req.body;
@@ -48,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const chatId = message.chat?.id;
       const text = message.text?.trim() || '';
-      const token = process.env.VITE_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || '8729008792:AAHQe2GrZRdx97O-sxNrJtiW02vXaTgN_H4';
+      const token = process.env.TELEGRAM_BOT_TOKEN;
 
       if (!token) {
         console.error('Missing Telegram Bot Token');
@@ -62,13 +66,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ ok: true });
       }
 
-      // Phone Number extraction & matching
+      // Phone Number extraction & exact matching
       const digitsOnly = text.replace(/\D/g, '');
       if (digitsOnly.length < 5) {
         return res.status(200).json({ ok: true });
       }
-
-      const last9 = digitsOnly.slice(-9);
 
       // Fetch students and groups from Firestore
       const studentsSnapshot = await getDocs(collection(db, 'students'));
@@ -86,7 +88,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const sData = docSnap.data();
         const pPhone = (sData.parentPhone || sData.phone || '').toString();
         const pPhoneDigits = pPhone.replace(/\D/g, '');
-        if (pPhoneDigits && pPhoneDigits.endsWith(last9)) {
+        
+        // Exact phone number matching
+        if (pPhoneDigits && pPhoneDigits === digitsOnly) {
           const studentName = `${sData.firstName || ''} ${sData.surname || ''}`.trim() || "O'quvchi";
           const groupName = sData.groupId ? groupsMap.get(sData.groupId) || 'Guruh' : 'Guruhsiz';
           matchedStudents.push({
@@ -122,6 +126,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // For GET/health checks
   return res.status(200).send('Telegram Webhook is running');
 }

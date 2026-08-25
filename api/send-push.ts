@@ -17,9 +17,15 @@ const clientApp = getClientApps().length === 0 ? initClientApp(firebaseConfig) :
 const db = getFirestore(clientApp);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS Headers
+  // Restrict CORS origin securely
+  const origin = req.headers.origin;
+  if (origin && (origin.includes('run.app') || origin.includes('localhost') || origin.includes('ai.studio'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://ais-dev-g3246sj4v3smwahqwra5jh-1047176565098.asia-southeast1.run.app');
+  }
+
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
@@ -80,8 +86,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     };
 
-    const response = await getMessaging().send(message);
-    return res.status(200).json({ success: true, messageId: response, token: targetToken });
+    await getMessaging().send(message);
+    // Do not return sensitive device tokens in response
+    return res.status(200).json({ success: true });
   } catch (error: any) {
     console.error('FCM Dispatch Failed:', error);
     return res.status(500).json({ success: false, error: error.message || 'Internal server error' });
