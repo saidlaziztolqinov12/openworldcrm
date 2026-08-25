@@ -64,29 +64,40 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTabTitle, onOpenTeacherAct
     ? `${currentUser.firstName} ${currentUser.surname}`
     : currentUser?.name || 'Staff Member';
 
+  const userRole = currentUser?.role || (isSuperAdmin ? 'super_admin' : isAdmin ? 'admin' : 'teacher');
+  const roleBadgeConfig = (() => {
+    if (userRole === 'super_admin') {
+      return {
+        label: 'Super Admin',
+        className: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+      };
+    } else if (userRole === 'admin') {
+      return {
+        label: 'Administrator',
+        className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+      };
+    } else {
+      return {
+        label: 'Instructor',
+        className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+      };
+    }
+  })();
+
   return (
     <>
-      <header className="h-14 w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 lg:px-8 shrink-0 z-20 transition-colors duration-200">
+      <header className="h-14 w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 lg:px-8 shrink-0 z-20 transition-colors duration-200">
         {/* Left Side: Active Section / Context */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate">
+            <span className="font-semibold text-xs sm:text-sm text-slate-800 dark:text-slate-100 truncate">
               {activeTabTitle || 'Open World'}
             </span>
-            {isSuperAdmin ? (
-              <span className="hidden sm:inline-flex text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-800 uppercase shadow-xs">
-                Super Admin
-              </span>
-            ) : (
-              <span className="hidden sm:inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/60 uppercase">
-                {isAdmin ? 'Admin Portal' : 'Instructor Workspace'}
-              </span>
-            )}
           </div>
         </div>
 
-        {/* Right Side: Standalone Theme Toggle & Circular Profile */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
+        {/* Right Side: Standalone Theme Toggle, Notifications, Role Badge & Circular Profile */}
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Standalone Day/Night Mode Icon-Only Toggle with Motion Animation */}
           <motion.button
             id="topbar-theme-toggle-btn"
@@ -94,7 +105,7 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTabTitle, onOpenTeacherAct
             onClick={toggleTheme}
             whileTap={{ scale: 0.88 }}
             whileHover={{ scale: 1.06 }}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer relative overflow-hidden"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer relative overflow-hidden"
             title={isDark ? 'Switch to Day Mode' : 'Switch to Night Mode (Telegram Dark)'}
             aria-label="Toggle theme"
           >
@@ -134,7 +145,7 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTabTitle, onOpenTeacherAct
             }}
             whileTap={{ scale: 0.88 }}
             whileHover={{ scale: 1.06 }}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer relative"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer relative"
             title="Inbox & Notifications"
             aria-label="Notifications"
           >
@@ -145,6 +156,11 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTabTitle, onOpenTeacherAct
               </span>
             )}
           </motion.button>
+
+          {/* Role Badge Pill */}
+          <span className={`text-[10px] sm:text-xs font-semibold px-2 sm:px-2.5 py-1 rounded-full shrink-0 ${roleBadgeConfig.className}`}>
+            {roleBadgeConfig.label}
+          </span>
 
           {/* Interactive Circular Profile Picture */}
           <div className="relative" ref={dropdownRef}>
