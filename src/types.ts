@@ -181,4 +181,30 @@ export interface SalaryAdvance {
   createdByName?: string;
 }
 
+export interface Installment {
+  id: string;
+  amount: number;
+  method: 'Cash' | 'Card / Bank Transfer' | 'Payme / Click' | 'Other';
+  date: string; // YYYY-MM-DD
+  note?: string;
+  recordedById: string;
+  recordedByName: string;
+  createdAt: string;
+}
+
+export interface StudentPayment {
+  id: string; // `${studentId}_${monthYear}`
+  studentId: string;
+  studentName: string;
+  groupId: string;
+  groupName: string;
+  monthYear: string; // YYYY-MM
+  monthlyFee: number; // expected tuition fee
+  totalPaid: number;
+  status: 'unpaid' | 'partial' | 'paid';
+  installments: Installment[];
+  updatedAt?: string;
+}
+
+
 

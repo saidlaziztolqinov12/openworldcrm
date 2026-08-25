@@ -13,7 +13,8 @@ import {
   WifiOff,
   Inbox,
   Wallet,
-  ShieldCheck
+  ShieldCheck,
+  CreditCard
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -31,7 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setIsCollapsed
 }) => {
   const { currentUser, isAdmin, isSuperAdmin } = useAuth();
-  const { isOnline, students, groups, teachers, admins, notifications } = useData();
+  const { isOnline, students, groups, teachers, admins, notifications, studentPayments } = useData();
 
   const visibleNotifications = useMemo(() => {
     return notifications.filter((n) => {
@@ -71,6 +72,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: 'All Students',
           icon: GraduationCap,
           badge: students.filter((s) => s.status !== 'inactive').length.toString()
+        },
+        {
+          id: 'payments',
+          label: 'Payments',
+          icon: CreditCard,
+          badge: studentPayments.filter((p) => p.status === 'unpaid' || p.status === 'partial').length > 0 ? studentPayments.filter((p) => p.status === 'unpaid' || p.status === 'partial').length.toString() : undefined
         },
         {
           id: 'teachers',

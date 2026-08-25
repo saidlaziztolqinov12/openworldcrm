@@ -8,7 +8,8 @@ import {
   GraduationCap,
   UserCheck,
   Inbox,
-  ShieldCheck
+  ShieldCheck,
+  CreditCard
 } from 'lucide-react';
 
 interface MobileNavProps {
@@ -59,6 +60,18 @@ export const MobileNav: React.FC<MobileNavProps> = ({ activeTab, setActiveTab })
             >
               <GraduationCap className="w-5 h-5" strokeWidth={activeTab === 'admin-students' ? 2.4 : 2.2} />
               <span className="text-[10.5px] mt-0.5 tracking-tight">Students</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('payments')}
+              className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-colors cursor-pointer ${
+                activeTab === 'payments'
+                  ? 'text-indigo-600 dark:text-indigo-400 font-extrabold'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-semibold'
+              }`}
+            >
+              <CreditCard className="w-5 h-5" strokeWidth={activeTab === 'payments' ? 2.4 : 2.2} />
+              <span className="text-[10.5px] mt-0.5 tracking-tight">Payments</span>
             </button>
 
             <button

@@ -20,6 +20,7 @@ import { GlobalAnalytics } from './components/admin/GlobalAnalytics';
 import { AllStudentsDirectory } from './components/admin/AllStudentsDirectory';
 import { SalaryAdvancesView } from './components/admin/SalaryAdvancesView';
 import { AdminManagement } from './components/admin/AdminManagement';
+import { PaymentsView } from './components/admin/PaymentsView';
 import { TeacherDashboard } from './components/teacher/TeacherDashboard';
 import { TeacherAttendanceLog } from './components/teacher/TeacherAttendanceLog';
 import { TeacherStudentsDirectory } from './components/teacher/TeacherStudentsDirectory';
@@ -55,7 +56,7 @@ const MainApp: React.FC = () => {
       setToastWarning('Access restricted to Super Admin only.');
       setTimeout(() => setToastWarning(null), 3500);
     }
-    if (isAdmin && !['admin-dashboard', 'admin-students', 'teachers', 'all-admins', 'salary-advances', 'analytics', 'inbox'].includes(activeTab)) {
+    if (isAdmin && !['admin-dashboard', 'admin-students', 'payments', 'teachers', 'all-admins', 'salary-advances', 'analytics', 'inbox'].includes(activeTab)) {
       setActiveTab('admin-dashboard');
     } else if (isTeacher && !['teacher-dashboard', 'teacher-students', 'teacher-attendance-history', 'inbox'].includes(activeTab)) {
       setActiveTab('teacher-dashboard');
@@ -205,6 +206,11 @@ const MainApp: React.FC = () => {
       setTimeout(() => setToastWarning(null), 3500);
       return;
     }
+    if (tab === 'payments' && !isAdmin) {
+      setToastWarning('Access restricted to administrators.');
+      setTimeout(() => setToastWarning(null), 3500);
+      return;
+    }
     setSelectedGroupId(null);
     setSelectedTeacherId(null);
     setActiveTab(tab);
@@ -235,6 +241,8 @@ const MainApp: React.FC = () => {
         return 'Overview Dashboard';
       case 'admin-students':
         return 'Students Directory';
+      case 'payments':
+        return 'Student Payments Ledger';
       case 'teacher-students':
         return 'My Students Roster';
       case 'teachers':
@@ -309,6 +317,9 @@ const MainApp: React.FC = () => {
                   )}
                   {activeTab === 'admin-students' && (
                     <AllStudentsDirectory onSelectGroup={handleSelectGroup} />
+                  )}
+                  {activeTab === 'payments' && (
+                    <PaymentsView />
                   )}
                   {activeTab === 'teachers' && (
                     <TeacherManagement

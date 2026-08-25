@@ -7,7 +7,9 @@ import {
   InternalNotification,
   MonthlyRosterStudent,
   GroupActivityLog,
-  SalaryAdvance
+  SalaryAdvance,
+  StudentPayment,
+  Installment
 } from '../types';
 import { db } from '../firebase.config';
 import {
@@ -48,6 +50,7 @@ interface DataContextType {
   notifications: InternalNotification[];
   groupActivityLogs: GroupActivityLog[];
   salaryAdvances: SalaryAdvance[];
+  studentPayments: StudentPayment[];
   loading: boolean;
   isOnline: boolean;
   addGroup: (group: Omit<Group, 'id' | 'createdAt'>) => Promise<string>;
@@ -78,6 +81,9 @@ interface DataContextType {
   addSalaryAdvance: (advance: Omit<SalaryAdvance, 'id' | 'createdAt'>) => Promise<string>;
   updateSalaryAdvance: (id: string, advance: Partial<SalaryAdvance>) => Promise<void>;
   deleteSalaryAdvance: (id: string) => Promise<void>;
+  recordStudentPayment: (data: { studentId: string; studentName: string; groupId: string; groupName: string; monthYear: string; amount: number; method: 'Cash' | 'Card / Bank Transfer' | 'Payme / Click' | 'Other'; date: string; note?: string; monthlyFee?: number }) => Promise<void>;
+  deleteStudentPaymentInstallment: (docId: string, installmentId: string) => Promise<void>;
+  updateStudentMonthlyFee: (docId: string, monthlyFee: number, studentData?: { studentId: string; studentName: string; groupId: string; groupName: string; monthYear: string }) => Promise<void>;
   resetDatabaseToDefaults: () => Promise<void>;
   getGroupStudents: (groupId: string) => Student[];
   getGroupAttendanceRecords: (groupId: string) => AttendanceRecord[];
@@ -98,6 +104,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [notifications, setNotifications] = useState<InternalNotification[]>([]);
   const [groupActivityLogs, setGroupActivityLogs] = useState<GroupActivityLog[]>(INITIAL_GROUP_ACTIVITY_LOGS);
   const [salaryAdvances, setSalaryAdvances] = useState<SalaryAdvance[]>(INITIAL_SALARY_ADVANCES);
+  const [studentPayments, setStudentPayments] = useState<StudentPayment[]>(() => {
+    try {
+      const cached = localStorage.getItem('cached_student_payments');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
   const [loading, setLoading] = useState<boolean>(true);
   const [isOnline, setIsOnline] = useState<boolean>(true);
 
@@ -112,6 +128,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let unsubscribeNotifications = () => {};
     let unsubscribeLogs = () => {};
     let unsubscribeSalaryAdvances = () => {};
+    let unsubscribeStudentPayments = () => {};
+
 
 
     const setupListeners = async () => {
@@ -255,6 +273,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.warn('Salary advances listener notice:', err);
           }
         );
+
+        // 8. Live Sync: student_payments collection
+        unsubscribeStudentPayments = onSnapshot(
+          query(collection(db, 'student_payments')),
+          (snapshot) => {
+            const items: StudentPayment[] = [];
+            snapshot.forEach((d) => {
+              items.push({ id: d.id, ...(d.data() as Omit<StudentPayment, 'id'>) });
+            });
+            setStudentPayments(items);
+          },
+          (err) => {
+            console.warn('Student payments listener notice:', err);
+          }
+        );
       } catch (e) {
         console.warn('Firestore connection notice:', e);
         setLoading(false);
@@ -273,11 +306,336 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubscribeNotifications();
       unsubscribeLogs();
       unsubscribeSalaryAdvances();
+      unsubscribeStudentPayments();
     };
   }, []);
 
   const teachers = users.filter((u) => u.role === 'teacher');
   const admins = users.filter((u) => u.role === 'admin' || u.role === 'super_admin');
+
+  const cleanFirestoreData = (obj: any): any => {
+    if (obj === null || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) {
+      return obj.map(cleanFirestoreData);
+    }
+    const cleaned: any = {};
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+      if (val !== undefined) {
+        cleaned[key] = cleanFirestoreData(val);
+      }
+    }
+    return cleaned;
+  };
+
+  const recordStudentPayment = async (data: {
+    studentId: string;
+    studentName: string;
+    groupId: string;
+    groupName: string;
+    monthYear: string;
+    amount: number;
+    method: 'Cash' | 'Card / Bank Transfer' | 'Payme / Click' | 'Other';
+    date: string;
+    note?: string;
+    monthlyFee?: number;
+  }) => {
+    const docId = `${data.studentId}_${data.monthYear}`;
+    const recordRef = doc(db, 'student_payments', data.monthYear, 'records', data.studentId);
+    const parentRef = doc(db, 'student_payments', data.monthYear);
+
+    let existingInstallments: Installment[] = [];
+    let currentTotalPaid = 0;
+    let fee = data.monthlyFee ?? 500000;
+
+    try {
+      const docSnap = await getDoc(recordRef);
+      if (docSnap.exists()) {
+        const docData = docSnap.data();
+        existingInstallments = Array.isArray(docData.installments) ? docData.installments : [];
+        currentTotalPaid = Number(docData.totalPaid || 0);
+        fee = Number(docData.monthlyFee || data.monthlyFee || 500000);
+      } else {
+        const existingLocal = studentPayments.find((p) => p.id === docId);
+        if (existingLocal) {
+          existingInstallments = existingLocal.installments || [];
+          currentTotalPaid = existingLocal.totalPaid || 0;
+          fee = existingLocal.monthlyFee || fee;
+        }
+      }
+    } catch (err) {
+      console.warn('Error reading existing payment doc:', err);
+    }
+
+    const newInstallment: Installment = {
+      id: `inst-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      amount: Number(data.amount),
+      method: data.method || 'Cash',
+      date: data.date,
+      note: data.note?.trim() || 'No note',
+      recordedById: currentUser?.id || 'admin-1',
+      recordedByName: currentUser?.name || 'Administrator',
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedInstallments = [...existingInstallments, newInstallment];
+    const newTotalPaid = currentTotalPaid + Number(data.amount);
+
+    let newStatus: 'unpaid' | 'partial' | 'paid' = 'unpaid';
+    if (newTotalPaid >= fee) {
+      newStatus = 'paid';
+    } else if (newTotalPaid > 0) {
+      newStatus = 'partial';
+    }
+
+    const updatedPaymentRecord: StudentPayment = {
+      id: docId,
+      studentId: data.studentId,
+      studentName: data.studentName,
+      groupId: data.groupId,
+      groupName: data.groupName,
+      monthYear: data.monthYear,
+      monthlyFee: fee,
+      totalPaid: newTotalPaid,
+      status: newStatus,
+      installments: updatedInstallments,
+      updatedAt: new Date().toISOString()
+    };
+
+    setStudentPayments((prev) => {
+      const idx = prev.findIndex((p) => p.id === docId);
+      let next: StudentPayment[];
+      if (idx >= 0) {
+        next = [...prev];
+        next[idx] = updatedPaymentRecord;
+      } else {
+        next = [...prev, updatedPaymentRecord];
+      }
+      try {
+        localStorage.setItem('cached_student_payments', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
+    try {
+      const payload = {
+        studentId: data.studentId,
+        studentName: data.studentName,
+        groupId: data.groupId || '',
+        groupName: data.groupName || '',
+        monthlyFee: fee,
+        totalPaid: newTotalPaid,
+        status: newStatus,
+        installments: updatedInstallments,
+        updatedAt: serverTimestamp()
+      };
+
+      await setDoc(recordRef, cleanFirestoreData(payload), { merge: true });
+      await setDoc(parentRef, { lastUpdated: serverTimestamp() }, { merge: true });
+    } catch (e) {
+      console.warn('Firestore write notice for recordStudentPayment:', e);
+      throw e;
+    }
+  };
+
+  const deleteStudentPaymentInstallment = async (docId: string, installmentId: string) => {
+    const monthYear = docId.slice(-7);
+    const studentId = docId.slice(0, -8);
+    const recordRef = doc(db, 'student_payments', monthYear, 'records', studentId);
+
+    let existingInstallments: Installment[] = [];
+    let studentName = '';
+    let groupId = '';
+    let groupName = '';
+    let monthlyFee = 500000;
+
+    try {
+      const docSnap = await getDoc(recordRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        existingInstallments = Array.isArray(data.installments) ? data.installments : [];
+        studentName = data.studentName || '';
+        groupId = data.groupId || '';
+        groupName = data.groupName || '';
+        monthlyFee = Number(data.monthlyFee || 500000);
+      } else {
+        const existingLocal = studentPayments.find((p) => p.id === docId);
+        if (existingLocal) {
+          existingInstallments = existingLocal.installments || [];
+          studentName = existingLocal.studentName;
+          groupId = existingLocal.groupId;
+          groupName = existingLocal.groupName;
+          monthlyFee = existingLocal.monthlyFee;
+        }
+      }
+    } catch (e) {
+      console.warn('Error fetching record for deletion:', e);
+    }
+
+    const installments = existingInstallments.filter((i) => i.id !== installmentId);
+    const totalPaid = installments.reduce((sum, i) => sum + i.amount, 0);
+
+    let status: 'unpaid' | 'partial' | 'paid' = 'unpaid';
+    if (totalPaid >= monthlyFee) {
+      status = 'paid';
+    } else if (totalPaid > 0) {
+      status = 'partial';
+    }
+
+    const updatedPaymentRecord: StudentPayment = {
+      id: docId,
+      studentId,
+      studentName,
+      groupId,
+      groupName,
+      monthYear,
+      monthlyFee,
+      totalPaid,
+      status,
+      installments,
+      updatedAt: new Date().toISOString()
+    };
+
+    setStudentPayments((prev) => {
+      const idx = prev.findIndex((p) => p.id === docId);
+      let next: StudentPayment[];
+      if (idx >= 0) {
+        next = [...prev];
+        if (installments.length === 0) {
+          next.splice(idx, 1);
+        } else {
+          next[idx] = updatedPaymentRecord;
+        }
+      } else {
+        next = [...prev, updatedPaymentRecord];
+      }
+      try {
+        localStorage.setItem('cached_student_payments', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
+    try {
+      const parentRef = doc(db, 'student_payments', monthYear);
+      if (installments.length === 0) {
+        await deleteDoc(recordRef);
+      } else {
+        const payload = {
+          studentId,
+          studentName,
+          groupId,
+          groupName,
+          monthlyFee,
+          totalPaid,
+          status,
+          installments,
+          updatedAt: serverTimestamp()
+        };
+        await setDoc(recordRef, cleanFirestoreData(payload), { merge: true });
+      }
+      await setDoc(parentRef, { lastUpdated: serverTimestamp() }, { merge: true });
+    } catch (e) {
+      console.warn('Firestore delete installment notice:', e);
+      throw e;
+    }
+  };
+
+  const updateStudentMonthlyFee = async (
+    docId: string,
+    monthlyFee: number,
+    studentData?: { studentId: string; studentName: string; groupId: string; groupName: string; monthYear: string }
+  ) => {
+    const monthYear = studentData?.monthYear || docId.slice(-7);
+    const studentId = studentData?.studentId || docId.slice(0, -8);
+    const recordRef = doc(db, 'student_payments', monthYear, 'records', studentId);
+
+    let installments: Installment[] = [];
+    let totalPaid = 0;
+    let studentName = studentData?.studentName || '';
+    let groupId = studentData?.groupId || '';
+    let groupName = studentData?.groupName || '';
+
+    try {
+      const docSnap = await getDoc(recordRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        installments = Array.isArray(data.installments) ? data.installments : [];
+        totalPaid = Number(data.totalPaid || 0);
+        studentName = studentName || data.studentName || '';
+        groupId = groupId || data.groupId || '';
+        groupName = groupName || data.groupName || '';
+      } else {
+        const existingLocal = studentPayments.find((p) => p.id === docId);
+        if (existingLocal) {
+          installments = existingLocal.installments || [];
+          totalPaid = existingLocal.totalPaid || 0;
+          studentName = studentName || existingLocal.studentName;
+          groupId = groupId || existingLocal.groupId;
+          groupName = groupName || existingLocal.groupName;
+        }
+      }
+    } catch (e) {
+      console.warn('Error fetching record for monthly fee update:', e);
+    }
+
+    let status: 'unpaid' | 'partial' | 'paid' = 'unpaid';
+    if (totalPaid >= monthlyFee) {
+      status = 'paid';
+    } else if (totalPaid > 0) {
+      status = 'partial';
+    }
+
+    const updatedPaymentRecord: StudentPayment = {
+      id: docId,
+      studentId,
+      studentName,
+      groupId,
+      groupName,
+      monthYear,
+      monthlyFee,
+      totalPaid,
+      status,
+      installments,
+      updatedAt: new Date().toISOString()
+    };
+
+    setStudentPayments((prev) => {
+      const idx = prev.findIndex((p) => p.id === docId);
+      let next: StudentPayment[];
+      if (idx >= 0) {
+        next = [...prev];
+        next[idx] = updatedPaymentRecord;
+      } else {
+        next = [...prev, updatedPaymentRecord];
+      }
+      try {
+        localStorage.setItem('cached_student_payments', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+
+    try {
+      const parentRef = doc(db, 'student_payments', monthYear);
+      const payload = {
+        studentId,
+        studentName,
+        groupId,
+        groupName,
+        monthlyFee: Number(monthlyFee),
+        totalPaid,
+        status,
+        installments,
+        updatedAt: serverTimestamp()
+      };
+
+      await setDoc(recordRef, cleanFirestoreData(payload), { merge: true });
+      await setDoc(parentRef, { lastUpdated: serverTimestamp() }, { merge: true });
+    } catch (e) {
+      console.warn('Firestore update monthly fee notice:', e);
+      throw e;
+    }
+  };
+
 
   const addAdmin = async (adminData: Omit<User, 'id' | 'createdAt' | 'role'>): Promise<string> => {
     const id = `admin-${Date.now()}`;
@@ -1101,6 +1459,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         notifications,
         groupActivityLogs,
         salaryAdvances,
+        studentPayments,
         loading,
         isOnline,
         addGroup,
@@ -1131,6 +1490,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addSalaryAdvance,
         updateSalaryAdvance,
         deleteSalaryAdvance,
+        recordStudentPayment,
+        deleteStudentPaymentInstallment,
+        updateStudentMonthlyFee,
         resetDatabaseToDefaults,
         getGroupStudents,
         getGroupAttendanceRecords,
