@@ -248,10 +248,16 @@ const CohortAnalyticsCard: React.FC<CohortAnalyticsCardProps> = ({
 
     const uniqueRecords = Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
     const totalStudents = Math.max(1, rosterStudents.length);
+    const maxPresentInMonth = Math.max(...uniqueRecords.map(rec => {
+      if (!rec || !rec.statusMap) return 0;
+      let p = 0;
+      rosterStudents.forEach(s => { if (rec.statusMap[s.id] === 'present') p++; });
+      return p;
+    }), 5);
+
     const data: Array<{
       lesson: string;
       date?: string;
-      percentage: number;
       presentCount: number;
       totalStudents: number;
       hasRecord: boolean;
@@ -267,11 +273,9 @@ const CohortAnalyticsCard: React.FC<CohortAnalyticsCardProps> = ({
             present++;
           }
         });
-        const pct = Math.round((present / totalStudents) * 100);
         data.push({
           lesson: lessonName,
           date: rec.date,
-          percentage: pct,
           presentCount: present,
           totalStudents,
           hasRecord: true
@@ -279,7 +283,6 @@ const CohortAnalyticsCard: React.FC<CohortAnalyticsCardProps> = ({
       } else {
         data.push({
           lesson: lessonName,
-          percentage: 0,
           presentCount: 0,
           totalStudents,
           hasRecord: false
@@ -290,6 +293,7 @@ const CohortAnalyticsCard: React.FC<CohortAnalyticsCardProps> = ({
   }, [attendanceRecords, group.id, yearMonth, rosterStudents]);
 
   const lessonsCompletedCount = chartData.filter((d) => d.hasRecord).length;
+  const maxPossibleStudents = Math.max(5, rosterStudents.length);
 
   // Total attended lessons strictly from monthly sheet logic (including historical left students)
   const totalAttendedLessons = useMemo(() => {
@@ -356,12 +360,13 @@ const CohortAnalyticsCard: React.FC<CohortAnalyticsCardProps> = ({
               axisLine={false}
             />
             <YAxis
-              domain={[0, 100]}
+              domain={[0, maxPossibleStudents]}
+              allowDecimals={false}
               stroke="#94a3b8"
               fontSize={11}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(val) => `${val}%`}
+              tickFormatter={(val) => `${val}`}
             />
             <Tooltip
               content={({ active, payload }) => {
@@ -374,7 +379,7 @@ const CohortAnalyticsCard: React.FC<CohortAnalyticsCardProps> = ({
                         {data.date && <span className="text-[10px] text-slate-400 font-normal">{data.date}</span>}
                       </div>
                       <div className="font-semibold text-slate-100">
-                        {data.percentage}% — {data.presentCount}/{data.totalStudents} Students
+                        Students Present: {data.presentCount} / {data.totalStudents}
                       </div>
                     </div>
                   );
@@ -383,7 +388,7 @@ const CohortAnalyticsCard: React.FC<CohortAnalyticsCardProps> = ({
               }}
             />
             <Bar
-              dataKey="percentage"
+              dataKey="presentCount"
               fill="#10b981"
               radius={[4, 4, 0, 0]}
               isAnimationActive={true}

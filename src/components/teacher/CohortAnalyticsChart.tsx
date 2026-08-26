@@ -19,7 +19,8 @@ export const CohortAnalyticsChart: React.FC<CohortAnalyticsChartProps> = ({
   const [hoveredLesson, setHoveredLesson] = useState<{
     lesson: string;
     date?: string;
-    percentage: number;
+    presentCount: number;
+    totalStudents: number;
     fraction: string;
     x: number;
     y: number;
@@ -29,6 +30,8 @@ export const CohortAnalyticsChart: React.FC<CohortAnalyticsChartProps> = ({
   const rosterStudents = useMemo(() => {
     return students.filter((s) => s.groupId === group.id && s.status !== 'inactive');
   }, [students, group.id]);
+
+  const maxCount = Math.max(5, rosterStudents.length);
 
   // Compute 13 lessons for this group in the selected yearMonth
   const lessonsData = useMemo(() => {
@@ -40,7 +43,6 @@ export const CohortAnalyticsChart: React.FC<CohortAnalyticsChartProps> = ({
     const data: Array<{
       lesson: string;
       date?: string;
-      percentage: number;
       presentCount: number;
       totalStudents: number;
       hasRecord: boolean;
@@ -56,11 +58,9 @@ export const CohortAnalyticsChart: React.FC<CohortAnalyticsChartProps> = ({
             present++;
           }
         });
-        const pct = Math.round((present / totalStudents) * 100);
         data.push({
           lesson: lessonName,
           date: rec.date,
-          percentage: pct,
           presentCount: present,
           totalStudents,
           hasRecord: true
@@ -68,7 +68,6 @@ export const CohortAnalyticsChart: React.FC<CohortAnalyticsChartProps> = ({
       } else {
         data.push({
           lesson: lessonName,
-          percentage: 0,
           presentCount: 0,
           totalStudents,
           hasRecord: false
@@ -78,11 +77,11 @@ export const CohortAnalyticsChart: React.FC<CohortAnalyticsChartProps> = ({
     return data;
   }, [attendanceRecords, group.id, yearMonth, rosterStudents]);
 
-  const avgAttendance = useMemo(() => {
+  const avgPresent = useMemo(() => {
     const recorded = lessonsData.filter((d) => d.hasRecord);
     if (recorded.length === 0) return 0;
-    const sum = recorded.reduce((acc, cur) => acc + cur.percentage, 0);
-    return Math.round(sum / recorded.length);
+    const sum = recorded.reduce((acc, cur) => acc + cur.presentCount, 0);
+    return (sum / recorded.length).toFixed(1);
   }, [lessonsData]);
 
   return (
@@ -93,7 +92,7 @@ export const CohortAnalyticsChart: React.FC<CohortAnalyticsChartProps> = ({
           <div className="flex items-center gap-2">
             <h3 className="font-extrabold text-slate-900 dark:text-white text-base">{group.name}</h3>
             <span className="text-[10px] font-mono bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded font-bold">
-              Avg: {avgAttendance}%
+              Avg Present: {avgPresent}
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -111,26 +110,26 @@ export const CohortAnalyticsChart: React.FC<CohortAnalyticsChartProps> = ({
         {/* Y-Axis Grid Lines & Labels */}
         <div className="absolute inset-x-0 top-6 bottom-8 flex flex-col justify-between pointer-events-none text-[10px] font-mono text-slate-400 dark:text-slate-500">
           <div className="border-b border-slate-100 dark:border-slate-800/80 flex justify-between items-center pr-2">
-            <span>100%</span>
+            <span>{maxCount}</span>
           </div>
           <div className="border-b border-slate-100 dark:border-slate-800/80 flex justify-between items-center pr-2">
-            <span>75%</span>
+            <span>{Math.round(maxCount * 0.75)}</span>
           </div>
           <div className="border-b border-slate-100 dark:border-slate-800/80 flex justify-between items-center pr-2">
-            <span>50%</span>
+            <span>{Math.round(maxCount * 0.5)}</span>
           </div>
           <div className="border-b border-slate-100 dark:border-slate-800/80 flex justify-between items-center pr-2">
-            <span>25%</span>
+            <span>{Math.round(maxCount * 0.25)}</span>
           </div>
           <div className="border-b border-slate-200 dark:border-slate-700 flex justify-between items-center pr-2">
-            <span>0%</span>
+            <span>0</span>
           </div>
         </div>
 
         {/* Bars Grid */}
         <div className="relative h-48 flex items-end justify-between gap-1 sm:gap-2 px-2 z-10">
           {lessonsData.map((item, idx) => {
-            const heightPercentage = item.percentage;
+            const heightPercentage = Math.min(100, Math.round((item.presentCount / maxCount) * 100));
 
             return (
               <div
@@ -141,7 +140,8 @@ export const CohortAnalyticsChart: React.FC<CohortAnalyticsChartProps> = ({
                   setHoveredLesson({
                     lesson: item.lesson,
                     date: item.date,
-                    percentage: item.percentage,
+                    presentCount: item.presentCount,
+                    totalStudents: item.totalStudents,
                     fraction: `${item.presentCount}/${item.totalStudents} Students`,
                     x: rect.left + rect.width / 2,
                     y: rect.top
@@ -194,7 +194,7 @@ export const CohortAnalyticsChart: React.FC<CohortAnalyticsChartProps> = ({
             {hoveredLesson.date && <span className="text-[10px] text-slate-400 font-normal">({hoveredLesson.date})</span>}
           </div>
           <div className="text-slate-200 font-semibold mt-0.5">
-            {hoveredLesson.percentage}% — {hoveredLesson.fraction}
+            Students Present: {hoveredLesson.presentCount} / {hoveredLesson.totalStudents}
           </div>
         </div>
       )}

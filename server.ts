@@ -147,7 +147,7 @@ async function handleTelegramWebhookLogic(req: any, res: any) {
 
 async function startServer() {
   const app = express();
-  const PORT = Number(process.env.PORT) || 3000;
+  const PORT = 3000;
 
   app.use(express.json());
 
@@ -317,4 +317,6 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error("Failed to start server:", err);
+});
