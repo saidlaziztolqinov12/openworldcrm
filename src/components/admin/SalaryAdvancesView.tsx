@@ -516,7 +516,7 @@ export const SalaryAdvancesView: React.FC = () => {
                 >
                   <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <TeacherAvatar
-                      teacher={group.teacher || { name: group.teacherName, email: '' }}
+                      teacher={group.teacher || { name: group.teacherName }}
                       className="w-10 h-10 sm:w-11 sm:h-11 shrink-0"
                     />
                     <div className="min-w-0">

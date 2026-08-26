@@ -26,6 +26,7 @@ export interface Group {
   archived?: boolean;
   createdAt?: string;
   level?: string;
+  room?: string;
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'late';
@@ -98,7 +99,13 @@ export type NotificationType =
   | 'transfer_request'
   | 'student_offer'
   | 'announcement'
-  | 'system';
+  | 'system'
+  | 'request'
+  | 'info'
+  | 'alert'
+  | 'REQUEST'
+  | 'INFO'
+  | 'ALERT';
 
 export type NotificationStatus =
   | 'PENDING'

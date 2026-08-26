@@ -25,6 +25,9 @@ import {
   updateDoc,
   deleteDoc,
   query,
+  where,
+  orderBy,
+  limit,
   getDocs,
   getDoc,
   addDoc,
@@ -137,7 +140,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let unsubscribeSalaryAdvances = () => {};
     let unsubscribeStudentPayments = () => {};
 
-
+    if (!currentUser) {
+      setLoading(false);
+      return () => {};
+    }
 
     const setupListeners = async () => {
       try {
@@ -223,9 +229,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         unsubscribeAttendance = onSnapshot(query(collection(db, 'attendance_records')), handleAttendanceSnapshot, handleAttendanceError);
 
-        // 5. Live Sync: notifications collection (real-time Inbox)
+        // 5. Live Sync: notifications collection (real-time Inbox) scoped to user or GLOBAL
+        const userRecipientIds = Array.from(
+          new Set([currentUser.uid, currentUser.id, 'GLOBAL'].filter(Boolean) as string[])
+        );
         unsubscribeNotifications = onSnapshot(
-          query(collection(db, 'notifications')),
+          query(
+            collection(db, 'notifications'),
+            where('recipientId', 'in', userRecipientIds)
+          ),
           (snapshot) => {
             const items: InternalNotification[] = [];
             snapshot.forEach((d) => {
@@ -246,9 +258,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         );
 
-        // 6. Live Sync: group_logs collection (real-time Group Archive)
+        // 6. Live Sync: group_logs collection (real-time Group Archive) limited to 50 ordered by timestamp desc
         unsubscribeLogs = onSnapshot(
-          query(collection(db, 'group_logs')),
+          query(
+            collection(db, 'group_logs'),
+            orderBy('timestamp', 'desc'),
+            limit(50)
+          ),
           (snapshot) => {
             if (!snapshot.empty) {
               const items: GroupActivityLog[] = [];
@@ -268,21 +284,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         );
 
-        // 7. Live Sync: salary_advances collection
-        unsubscribeSalaryAdvances = onSnapshot(
-          query(collection(db, 'salary_advances')),
-          (snapshot) => {
-            const items: SalaryAdvance[] = [];
-            snapshot.forEach((d) => {
-              items.push({ id: d.id, ...(d.data() as Omit<SalaryAdvance, 'id'>) });
-            });
-            items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            setSalaryAdvances(items);
-          },
-          (err) => {
-            console.warn('Salary advances listener notice:', err);
-          }
-        );
+        // 7. Live Sync: salary_advances collection (only if super_admin)
+        if (currentUser.role === 'super_admin') {
+          unsubscribeSalaryAdvances = onSnapshot(
+            query(collection(db, 'salary_advances')),
+            (snapshot) => {
+              const items: SalaryAdvance[] = [];
+              snapshot.forEach((d) => {
+                items.push({ id: d.id, ...(d.data() as Omit<SalaryAdvance, 'id'>) });
+              });
+              items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+              setSalaryAdvances(items);
+            },
+            (err) => {
+              console.warn('Salary advances listener notice:', err);
+            }
+          );
+        }
 
         // 8. Live Sync: student_payments collection
         unsubscribeStudentPayments = onSnapshot(
@@ -316,7 +334,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubscribeSalaryAdvances();
       unsubscribeStudentPayments();
     };
-  }, []);
+  }, [currentUser]);
 
   const teachers = users.filter((u) => u.role === 'teacher');
   const admins = users.filter((u) => u.role === 'admin' || u.role === 'super_admin');

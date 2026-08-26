@@ -270,7 +270,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {isCollapsed ? (
           <div
             className="w-8 h-6 mx-auto flex items-center justify-center rounded-md text-slate-400"
-            title={isOnline ? 'Cloud database connected' : 'Offline local cache'}
+            title={isOnline ? 'Cloud database connected' : 'Offline mode'}
           >
             {isOnline ? (
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -281,7 +281,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ) : (
           <div
             className="flex items-center gap-1.5 text-xs py-1 px-2 rounded-md text-slate-500 dark:text-slate-400"
-            title={isOnline ? 'Cloud database connected' : 'Offline local mode'}
+            title={isOnline ? 'Cloud database connected' : 'Offline mode'}
           >
             {isOnline ? (
               <>
@@ -294,7 +294,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <>
                 <WifiOff className="w-3.5 h-3.5 text-amber-500" />
                 <span className="text-[10px] text-amber-600 dark:text-amber-400">
-                  Offline Cache
+                  Offline Mode
                 </span>
               </>
             )}
