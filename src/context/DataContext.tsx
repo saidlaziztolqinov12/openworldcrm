@@ -103,6 +103,12 @@ interface DataContextType {
 }
 
 
+const deduplicateById = <T extends { id: string }>(items: T[]): T[] => {
+  const map = new Map<string, T>();
+  items.forEach((item) => map.set(item.id, item));
+  return Array.from(map.values());
+};
+
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -162,8 +168,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           query(collection(db, 'users')),
           (snapshot) => {
             if (!snapshot.empty) {
-              const items: User[] = [];
-              snapshot.forEach((d) => {
+              const items: User[] = snapshot.docs.map((d) => {
                 const data = d.data() as Omit<User, 'id'>;
                 let u: User = { id: d.id, ...data };
                 if (u.id === 'admin-1' || u.email === 'admin@center.com' || (u.name && u.name.includes('Sarah'))) {
@@ -176,9 +181,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     role: 'super_admin'
                   };
                 }
-                items.push(u);
+                return u;
               });
-              setUsers(items);
+              setUsers(deduplicateById(items));
             }
             setIsOnline(true);
           },
@@ -192,9 +197,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsubscribeGroups = onSnapshot(
           query(collection(db, 'groups')),
           (snapshot) => {
-            const items: Group[] = [];
-            snapshot.forEach((d) => items.push({ id: d.id, ...(d.data() as Omit<Group, 'id'>) }));
-            setGroups(items);
+            const items = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Group, 'id'>) } as Group));
+            setGroups(deduplicateById(items));
           },
           (err) => {
             console.warn('Groups listener notice:', err);
@@ -206,9 +210,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsubscribeStudents = onSnapshot(
           query(collection(db, 'students')),
           (snapshot) => {
-            const items: Student[] = [];
-            snapshot.forEach((d) => items.push({ id: d.id, ...(d.data() as Omit<Student, 'id'>) }));
-            setStudents(items);
+            const items = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Student, 'id'>) } as Student));
+            setStudents(deduplicateById(items));
           },
           (err) => {
             console.warn('Students listener notice:', err);
@@ -218,11 +221,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // 4. Live Sync: attendance collection (attendance_records)
         const handleAttendanceSnapshot = (snapshot: any) => {
-          const itemsMap = new Map<string, AttendanceRecord>();
-          snapshot.forEach((d: any) => {
-            itemsMap.set(d.id, { id: d.id, ...(d.data() as Omit<AttendanceRecord, 'id'>) });
-          });
-          setAttendanceRecords(Array.from(itemsMap.values()));
+          const items = snapshot.docs.map((d: any) => ({ id: d.id, ...(d.data() as Omit<AttendanceRecord, 'id'>) } as AttendanceRecord));
+          setAttendanceRecords(deduplicateById(items));
         };
         const handleAttendanceError = (err: any) => {
           console.warn('Attendance listener notice:', err);
@@ -239,17 +239,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             where('recipientId', 'in', userRecipientIds)
           ),
           (snapshot) => {
-            const items: InternalNotification[] = [];
-            snapshot.forEach((d) => {
-              const notif = { id: d.id, ...(d.data() as Omit<InternalNotification, 'id'>) };
+            const items: InternalNotification[] = snapshot.docs.map((d) => {
+              const notif = { id: d.id, ...(d.data() as Omit<InternalNotification, 'id'>) } as InternalNotification;
               if (notif.senderName && notif.senderName.includes('Sarah')) {
                 notif.senderName = notif.senderName.replace(/Sarah\s*Jenkins/gi, 'MuhammadIso Ermatov');
               }
-              items.push(notif);
+              return notif;
             });
             // Sort newest first
             items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            setNotifications(items);
+            setNotifications(deduplicateById(items));
             setLoading(false);
           },
           (err) => {
@@ -267,16 +266,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ),
           (snapshot) => {
             if (!snapshot.empty) {
-              const items: GroupActivityLog[] = [];
-              snapshot.forEach((d) => {
-                const log = { id: d.id, ...(d.data() as Omit<GroupActivityLog, 'id'>) };
+              const items: GroupActivityLog[] = snapshot.docs.map((d) => {
+                const log = { id: d.id, ...(d.data() as Omit<GroupActivityLog, 'id'>) } as GroupActivityLog;
                 if (log.actorName && log.actorName.includes('Sarah')) {
                   log.actorName = log.actorName.replace(/Sarah\s*Jenkins/gi, 'MuhammadIso Ermatov');
                 }
-                items.push(log);
+                return log;
               });
               items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-              setGroupActivityLogs(items);
+              setGroupActivityLogs(deduplicateById(items));
             }
           },
           (err) => {
@@ -289,12 +287,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           unsubscribeSalaryAdvances = onSnapshot(
             query(collection(db, 'salary_advances')),
             (snapshot) => {
-              const items: SalaryAdvance[] = [];
-              snapshot.forEach((d) => {
-                items.push({ id: d.id, ...(d.data() as Omit<SalaryAdvance, 'id'>) });
-              });
+              const items: SalaryAdvance[] = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<SalaryAdvance, 'id'>) } as SalaryAdvance));
               items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-              setSalaryAdvances(items);
+              setSalaryAdvances(deduplicateById(items));
             },
             (err) => {
               console.warn('Salary advances listener notice:', err);
@@ -306,11 +301,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsubscribeStudentPayments = onSnapshot(
           query(collection(db, 'student_payments')),
           (snapshot) => {
-            const items: StudentPayment[] = [];
-            snapshot.forEach((d) => {
-              items.push({ id: d.id, ...(d.data() as Omit<StudentPayment, 'id'>) });
-            });
-            setStudentPayments(items);
+            const items: StudentPayment[] = snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<StudentPayment, 'id'>) } as StudentPayment));
+            setStudentPayments(deduplicateById(items));
           },
           (err) => {
             console.warn('Student payments listener notice:', err);
@@ -692,7 +684,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...newAdmin,
       createdAt: serverTimestamp()
     });
-    setUsers((prev) => [...prev, newAdmin]);
     return newUid;
   };
 
@@ -701,14 +692,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...advanceData,
       createdAt: serverTimestamp()
     });
-    const id = docRef.id;
-    const newAdvance: SalaryAdvance = {
-      ...advanceData,
-      id,
-      createdAt: new Date().toISOString()
-    };
-    setSalaryAdvances((prev) => [newAdvance, ...prev]);
-    return id;
+    return docRef.id;
   };
 
   const updateSalaryAdvance = async (id: string, advanceData: Partial<SalaryAdvance>): Promise<void> => {
@@ -753,7 +737,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       timestamp: activity.timestamp || new Date().toISOString()
     };
 
-    setGroupActivityLogs((prev) => [newLog, ...prev]);
     try {
       await setDoc(doc(db, 'group_logs', id), newLog);
     } catch (e) {
@@ -772,7 +755,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     await setDoc(doc(db, 'groups', id), newGroup);
-    setGroups((prev) => [...prev, newGroup]);
 
     // Auto-log group creation activity in group_logs
     const actorId = currentUser?.id || 'admin-1';
@@ -873,7 +855,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     await setDoc(doc(db, 'students', id), newStudent);
-    setStudents((prev) => [...prev, newStudent]);
 
     // Auto-log student enrollment if assigned directly to a group
     if (newStudent.groupId) {
@@ -1086,7 +1067,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...newTeacher,
       createdAt: serverTimestamp()
     });
-    setUsers((prev) => [...prev, newTeacher]);
     return newUid;
   };
 
@@ -1119,7 +1099,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: new Date().toISOString()
     };
 
-    setNotifications((prev) => [newNotif, ...prev]);
     try {
       await setDoc(doc(db, 'notifications', id), newNotif);
 
