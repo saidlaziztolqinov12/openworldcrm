@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { ChangeAvatarModal } from './ChangeAvatarModal';
 import {
   GraduationCap,
   LayoutDashboard,
@@ -33,6 +34,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { currentUser, isAdmin, isSuperAdmin } = useAuth();
   const { isOnline, students, groups, teachers, admins, notifications, studentPayments } = useData();
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+
+  const initials = currentUser?.firstName && currentUser?.surname
+    ? `${currentUser.firstName.charAt(0)}${currentUser.surname.charAt(0)}`
+    : currentUser?.name
+    ? currentUser.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'OW';
+
+  const fullName = currentUser?.firstName && currentUser?.surname
+    ? `${currentUser.firstName} ${currentUser.surname}`
+    : currentUser?.name || 'Staff Member';
 
   const visibleNotifications = useMemo(() => {
     return notifications.filter((n) => {
@@ -265,42 +277,91 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* Sync Status Footer */}
-      <div className="px-2 py-2 border-t border-slate-200/80 dark:border-slate-800 bg-transparent">
+      {/* User Card & Sync Status Footer */}
+      <div className="border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 p-2 space-y-1.5">
         {isCollapsed ? (
-          <div
-            className="w-8 h-6 mx-auto flex items-center justify-center rounded-md text-slate-400"
-            title={isOnline ? 'Cloud database connected' : 'Offline mode'}
-          >
-            {isOnline ? (
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            ) : (
-              <WifiOff className="w-3.5 h-3.5 text-amber-500" />
-            )}
+          <div className="flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsAvatarModalOpen(true)}
+              className="relative group cursor-pointer"
+              title="Change Avatar / Edit Profile"
+            >
+              {currentUser?.avatar ? (
+                <img
+                  src={currentUser.avatar}
+                  alt={fullName}
+                  className="w-9 h-9 rounded-full bg-slate-100 object-cover border border-slate-200 dark:border-slate-700 hover:ring-2 hover:ring-indigo-500 transition-all"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs hover:ring-2 hover:ring-indigo-500 transition-all">
+                  {initials}
+                </div>
+              )}
+            </button>
+            <div
+              className="w-6 h-4 flex items-center justify-center text-slate-400"
+              title={isOnline ? 'Cloud database connected' : 'Offline mode'}
+            >
+              {isOnline ? (
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              ) : (
+                <WifiOff className="w-3.5 h-3.5 text-amber-500" />
+              )}
+            </div>
           </div>
         ) : (
-          <div
-            className="flex items-center gap-1.5 text-xs py-1 px-2 rounded-md text-slate-500 dark:text-slate-400"
-            title={isOnline ? 'Cloud database connected' : 'Offline mode'}
-          >
-            {isOnline ? (
-              <>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                  Cloud Synced
-                </span>
-              </>
-            ) : (
-              <>
-                <WifiOff className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-[10px] text-amber-600 dark:text-amber-400">
-                  Offline Mode
-                </span>
-              </>
-            )}
-          </div>
+          <>
+            <div
+              onClick={() => setIsAvatarModalOpen(true)}
+              className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer group"
+              title="Click to change avatar"
+            >
+              {currentUser?.avatar ? (
+                <img
+                  src={currentUser.avatar}
+                  alt={fullName}
+                  className="w-9 h-9 rounded-full bg-slate-100 object-cover border border-slate-200 dark:border-slate-700 shrink-0 group-hover:ring-2 group-hover:ring-indigo-500 transition-all"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs group-hover:ring-2 group-hover:ring-indigo-500 transition-all">
+                  {initials}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                  {fullName}
+                </p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                  {isAdmin ? (isSuperAdmin ? 'Super Administrator' : 'Administrator') : 'Instructor'} • <span className="text-indigo-600 dark:text-indigo-400 underline">Change Avatar</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between px-1.5 text-[10px] text-slate-400 dark:text-slate-500">
+              <div className="flex items-center gap-1.5" title={isOnline ? 'Cloud database connected' : 'Offline mode'}>
+                {isOnline ? (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    <span>Cloud Synced</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="w-3 h-3 text-amber-500" />
+                    <span className="text-amber-600">Offline Mode</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </>
         )}
       </div>
+
+      {/* Change Avatar Modal */}
+      <ChangeAvatarModal
+        isOpen={isAvatarModalOpen}
+        onClose={() => setIsAvatarModalOpen(false)}
+      />
     </aside>
   );
 };

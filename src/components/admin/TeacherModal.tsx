@@ -5,6 +5,23 @@ import { formatAuthLogin } from '../../lib/authUtils';
 import { X, UserCheck, Mail, Briefcase, Lock, Sparkles, User as UserIcon, Eye, EyeOff } from 'lucide-react';
 import { PhoneInput } from '../common/PhoneInput';
 
+export const NOTIONIST_AVATARS = [
+  { id: 'avatar_1', name: 'Felix', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e2e8f0' },
+  { id: 'avatar_2', name: 'Aria', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Aria&backgroundColor=e2e8f0' },
+  { id: 'avatar_3', name: 'Marcus', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Marcus&backgroundColor=e2e8f0' },
+  { id: 'avatar_4', name: 'Sophia', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Sophia&backgroundColor=e2e8f0' },
+  { id: 'avatar_5', name: 'Leo', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Leo&backgroundColor=e2e8f0' },
+  { id: 'avatar_6', name: 'Elena', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Elena&backgroundColor=e2e8f0' },
+  { id: 'avatar_7', name: 'Oliver', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Oliver&backgroundColor=e2e8f0' },
+  { id: 'avatar_8', name: 'Maya', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Maya&backgroundColor=e2e8f0' },
+  { id: 'avatar_9', name: 'Lucas', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Lucas&backgroundColor=e2e8f0' },
+  { id: 'avatar_10', name: 'Nora', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Nora&backgroundColor=e2e8f0' },
+  { id: 'avatar_11', name: 'Liam', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Liam&backgroundColor=e2e8f0' },
+  { id: 'avatar_12', name: 'Zoe', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Zoe&backgroundColor=e2e8f0' },
+  { id: 'avatar_13', name: 'Ethan', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Ethan&backgroundColor=e2e8f0' },
+  { id: 'avatar_14', name: 'Chloe', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=Chloe&backgroundColor=e2e8f0' },
+];
+
 interface TeacherModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -28,18 +45,9 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
   const [subject, setSubject] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [avatarColor, setAvatarColor] = useState('bg-indigo-600');
+  const [avatar, setAvatar] = useState(NOTIONIST_AVATARS[0].url);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const AVATAR_COLORS = [
-    { label: 'Indigo', value: 'bg-indigo-600' },
-    { label: 'Blue', value: 'bg-blue-600' },
-    { label: 'Sky', value: 'bg-sky-600' },
-    { label: 'Emerald', value: 'bg-emerald-600' },
-    { label: 'Violet', value: 'bg-violet-600' },
-    { label: 'Rose', value: 'bg-rose-600' }
-  ];
 
   const TITLE_OPTIONS = ['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.', 'Instructor'];
 
@@ -54,7 +62,7 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
       setTitle(teacherToEdit.title || 'Mr.');
       setSubject(teacherToEdit.subject || '');
       setPassword(teacherToEdit.password || '');
-      setAvatarColor(teacherToEdit.avatarColor || 'bg-indigo-600');
+      setAvatar(teacherToEdit.avatar || NOTIONIST_AVATARS[0].url);
     } else {
       setFirstName('');
       setSurname('');
@@ -63,7 +71,7 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
       setTitle('Mr.');
       setSubject('');
       setPassword('');
-      setAvatarColor('bg-indigo-600');
+      setAvatar(NOTIONIST_AVATARS[0].url);
     }
     setError('');
   }, [teacherToEdit, isOpen]);
@@ -110,7 +118,7 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
           title: title.trim(),
           subject: subject.trim(),
           password: password.trim() ? password.trim() : teacherToEdit.password,
-          avatarColor
+          avatar
         });
       } else {
         await addTeacher({
@@ -124,7 +132,7 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
           title: title.trim(),
           subject: subject.trim(),
           password: password.trim(),
-          avatarColor
+          avatar
         });
       }
       if (onSuccess) onSuccess();
@@ -309,22 +317,24 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
             </div>
           </div>
 
-          {/* Avatar color */}
+          {/* Avatar Selection */}
           <div>
-            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-              Profile Avatar Color
+            <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-2">
+              Select Notionist Avatar
             </label>
-            <div className="flex items-center gap-2">
-              {AVATAR_COLORS.map((c) => (
+            <div className="grid grid-cols-7 gap-2 p-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 max-h-48 overflow-y-auto">
+              {NOTIONIST_AVATARS.map((av) => (
                 <button
+                  key={av.id}
                   type="button"
-                  key={c.value}
-                  onClick={() => setAvatarColor(c.value)}
-                  className={`w-8 h-8 rounded-full ${c.value} transition-transform cursor-pointer ${
-                    avatarColor === c.value ? 'ring-2 ring-offset-2 ring-indigo-600 scale-110' : 'opacity-70 hover:opacity-100'
+                  onClick={() => setAvatar(av.url)}
+                  className={`w-11 h-11 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 transition-all cursor-pointer ${
+                    avatar === av.url ? 'ring-2 ring-indigo-600 ring-offset-2 scale-105' : 'opacity-70 hover:opacity-100'
                   }`}
-                  title={c.label}
-                />
+                  title={av.name}
+                >
+                  <img src={av.url} alt={av.name} className="w-full h-full object-cover" />
+                </button>
               ))}
             </div>
           </div>

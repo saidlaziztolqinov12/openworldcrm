@@ -14,6 +14,7 @@ export interface User {
   subject?: string;
   password?: string;
   avatarColor?: string;
+  avatar?: string;
   createdAt?: string;
 }
 

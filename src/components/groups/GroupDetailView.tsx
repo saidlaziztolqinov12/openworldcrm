@@ -18,6 +18,7 @@ import { StudentProfileDrawer } from '../students/StudentProfileDrawer';
 import { GroupModal } from './GroupModal';
 import { MonthlyAttendanceSheet } from './MonthlyAttendanceSheet';
 import { GroupArchiveTab } from './GroupArchiveTab';
+import { TeacherAvatar } from '../common/TeacherAvatar';
 import { createSmsUri } from '../../lib/sms';
 import { getLocalDate } from '../../lib/dateUtils';
 import confetti from 'canvas-confetti';
@@ -58,12 +59,14 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
     students,
     attendanceRecords,
     groupActivityLogs,
+    teachers,
     saveAttendanceRecord,
     removeStudentFromGroup
   } = useData();
   const { isAdmin, currentUser } = useAuth();
 
   const group = groups.find((g) => g.id === groupId);
+  const assignedTeacher = teachers.find((t) => t.id === group?.teacherId);
 
   // Active view tab: 'register' | 'monthly' | 'roster' | 'history' | 'archive'
   const [activeTab, setActiveTab] = useState<'register' | 'monthly' | 'roster' | 'history' | 'archive'>('register');
@@ -340,8 +343,8 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                 <Clock className="w-4 h-4 text-slate-400" />
                 <span className="font-semibold text-slate-800 dark:text-slate-200">{group.schedule}</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <UserCheck className="w-4 h-4 text-slate-400" />
+              <div className="flex items-center gap-2">
+                <TeacherAvatar teacher={assignedTeacher || { name: group.teacherName }} className="w-5 h-5" />
                 <span>Instructor: <strong className="text-slate-800 dark:text-slate-200">{group.teacherName}</strong></span>
               </div>
               <div className="flex items-center gap-1.5">

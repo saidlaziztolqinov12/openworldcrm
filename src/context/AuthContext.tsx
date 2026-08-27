@@ -21,6 +21,7 @@ interface AuthContextType {
     registeredUsers?: User[]
   ) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
+  setCurrentUser: React.Dispatch<React.SetStateAction<User | null>>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -213,6 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginAs,
         loginWithCredentials,
         logout,
+        setCurrentUser,
       }}
     >
       {children}
