@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { User } from '../../types';
 import { useData } from '../../context/DataContext';
 import { formatAuthLogin } from '../../lib/authUtils';
-import { X, ShieldCheck, Mail, Phone, Lock, User as UserIcon, Eye, EyeOff } from 'lucide-react';
+import { X, ShieldCheck, Mail, Phone, Lock, User as UserIcon, Eye, EyeOff, Sparkles, Check } from 'lucide-react';
 import { PhoneInput } from '../common/PhoneInput';
+import { NOTIONIST_AVATARS } from './TeacherModal';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [title, setTitle] = useState('Administrator');
+  const [avatar, setAvatar] = useState(NOTIONIST_AVATARS[0].url);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -40,6 +42,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       setPhone(adminToEdit.phone || '+998 ');
       setPassword(adminToEdit.password || '');
       setTitle(adminToEdit.title || 'Administrator');
+      setAvatar(adminToEdit.avatar || NOTIONIST_AVATARS[0].url);
     } else {
       setName('');
       setUsername('');
@@ -47,6 +50,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       setPhone('+998 ');
       setPassword('');
       setTitle('Administrator');
+      setAvatar(NOTIONIST_AVATARS[0].url);
     }
     setError('');
   }, [adminToEdit, isOpen]);
@@ -84,7 +88,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           email: resolvedEmail,
           phone: cleanPhone,
           title: title.trim(),
-          password: password.trim() ? password.trim() : adminToEdit.password
+          password: password.trim() ? password.trim() : adminToEdit.password,
+          avatar
         });
       } else {
         await addAdmin({
@@ -95,7 +100,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           title: title.trim(),
           password: password.trim(),
           subject: 'Administration',
-          avatarColor: 'bg-purple-600'
+          avatarColor: 'bg-purple-600',
+          avatar
         });
       }
       if (onSuccess) onSuccess();
@@ -188,6 +194,39 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               placeholder="e.g. Senior Administrator"
               className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
+          </div>
+
+          {/* Avatar Selector */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-purple-500" />
+              Choose Notionist Avatar
+            </label>
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 max-h-40 overflow-y-auto p-1 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/80">
+              {NOTIONIST_AVATARS.map((av) => {
+                const isSelected = avatar === av.url;
+                return (
+                  <button
+                    key={av.id}
+                    type="button"
+                    onClick={() => setAvatar(av.url)}
+                    className={`relative group aspect-square rounded-xl p-1.5 bg-white dark:bg-slate-800 border-2 transition-all cursor-pointer flex flex-col items-center justify-center overflow-hidden ${
+                      isSelected
+                        ? 'border-purple-600 dark:border-purple-500 ring-2 ring-purple-600/30 scale-105 shadow-sm'
+                        : 'border-slate-200 dark:border-slate-700 hover:border-purple-300 dark:hover:border-purple-700 opacity-80 hover:opacity-100'
+                    }`}
+                    title={av.name}
+                  >
+                    <img src={av.url} alt={av.name} className="w-full h-full object-cover rounded-full" />
+                    {isSelected && (
+                      <div className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-xs">
+                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div>

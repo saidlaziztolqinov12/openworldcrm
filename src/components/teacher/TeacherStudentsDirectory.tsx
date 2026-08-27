@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { Student } from '../../types';
 import { StudentModal } from '../students/StudentModal';
 import { StudentProfileDrawer } from '../students/StudentProfileDrawer';
@@ -26,6 +27,7 @@ export const TeacherStudentsDirectory: React.FC<TeacherStudentsDirectoryProps> =
 }) => {
   const { currentUser } = useAuth();
   const { students, groups } = useData();
+  const { t } = useLanguage();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('all');
@@ -78,13 +80,13 @@ export const TeacherStudentsDirectory: React.FC<TeacherStudentsDirectoryProps> =
         <div>
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/80 px-2.5 py-1 rounded-full w-fit mb-1.5 border border-indigo-200/60 dark:border-indigo-800/60">
             <Users className="w-3.5 h-3.5" />
-            <span>Assigned Roster</span>
+            <span>{t('myStudents.subtitle')}</span>
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            My Students
+            {t('myStudents.title')}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Complete list of students enrolled in your groups
+            {t('myStudents.description')}
           </p>
         </div>
 
@@ -95,7 +97,7 @@ export const TeacherStudentsDirectory: React.FC<TeacherStudentsDirectoryProps> =
             className="px-4 py-2.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/25 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2 shrink-0 cursor-pointer disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
-            <span>Enroll in Class</span>
+            <span>{t('myStudents.enrollInClass')}</span>
           </button>
         </div>
       </div>
@@ -132,7 +134,7 @@ export const TeacherStudentsDirectory: React.FC<TeacherStudentsDirectoryProps> =
             onChange={(e) => setSelectedGroupFilter(e.target.value)}
             className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-semibold text-slate-800 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 outline-none flex-1 sm:flex-none"
           >
-            <option value="all">My Groups ({totalMyStudents})</option>
+            <option value="all">{t('myStudents.myGroups')} ({totalMyStudents})</option>
             {myGroups.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -148,7 +150,7 @@ export const TeacherStudentsDirectory: React.FC<TeacherStudentsDirectoryProps> =
           >
             <ArrowUpDown className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
             <span className="hidden sm:inline">
-              {sortOrder === 'oldest' ? 'Added: Oldest First' : 'Added: Newest First'}
+              {sortOrder === 'oldest' ? t('myStudents.sortOldest') : t('myStudents.sortNewest')}
             </span>
           </button>
         </div>
@@ -159,7 +161,7 @@ export const TeacherStudentsDirectory: React.FC<TeacherStudentsDirectoryProps> =
         <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-950/40">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
-              {filteredStudents.length} {filteredStudents.length === 1 ? 'Student' : 'Students'}
+              {filteredStudents.length} {filteredStudents.length === 1 ? t('myStudents.studentCount', { count: filteredStudents.length }) : t('myStudents.studentCountPlural', { count: filteredStudents.length })}
             </span>
           </div>
         </div>
@@ -175,9 +177,9 @@ export const TeacherStudentsDirectory: React.FC<TeacherStudentsDirectoryProps> =
             <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
                <thead className="bg-slate-50 dark:bg-slate-950/50 text-slate-800 dark:text-slate-200 font-bold border-b border-slate-100 dark:border-slate-800 uppercase text-[10px] tracking-wider">
                 <tr>
-                  <th className="px-5 py-3 w-16">#</th>
-                  <th className="px-5 py-3">Student Name</th>
-                  <th className="px-5 py-3 text-right sticky right-0 bg-slate-50 dark:bg-slate-950/90 z-10 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.05)]">Actions</th>
+                  <th className="px-5 py-3 w-16">{t('myStudents.thNumber')}</th>
+                  <th className="px-5 py-3">{t('myStudents.thName')}</th>
+                  <th className="px-5 py-3 text-right sticky right-0 bg-slate-50 dark:bg-slate-950/90 z-10 shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.05)]">{t('myStudents.thActions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">

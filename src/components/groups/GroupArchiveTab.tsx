@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Group, GroupActivityLog, GroupActivityActionType } from '../../types';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { getLocalDate } from '../../lib/dateUtils';
 import {
   Archive,
@@ -16,12 +17,8 @@ import {
   Clock,
   User,
   Search,
-  Filter,
   Plus,
   Calendar,
-  Sparkles,
-  ShieldCheck,
-  AlertCircle,
   X,
   Check
 } from 'lucide-react';
@@ -33,11 +30,51 @@ interface GroupArchiveTabProps {
 export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
   const { getGroupActivityLogs, logGroupActivity } = useData();
   const { currentUser, isAdmin } = useAuth();
+  const { t, language } = useLanguage();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
   const [noteContent, setNoteContent] = useState('');
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+
+  const formatLogDescription = (log: GroupActivityLog) => {
+    if (language === 'uz') {
+      if (log.actionType === 'STUDENT_ENROLLED') {
+        const match = log.description.match(/Enrolled student (.+) into group/);
+        const studentName = match ? match[1] : log.description;
+        return t('groupDetail.archive.studentEnrolled', { student: studentName });
+      }
+      if (log.actionType === 'STUDENT_REMOVED') {
+        const match = log.description.match(/Removed student (.+) from group roster/);
+        const studentName = match ? match[1] : log.description;
+        return t('groupDetail.archive.studentRemoved', { student: studentName });
+      }
+      if (log.actionType === 'TEACHER_ASSIGNED') {
+        const match = log.description.match(/Assigned Instructor (.+) to group/);
+        const teacherName = match ? match[1] : log.description;
+        return t('groupDetail.archive.teacherAssigned', { teacher: teacherName });
+      }
+      if (log.actionType === 'GROUP_CREATED') {
+        const match = log.description.match(/Created group "(.+)" with schedule (.+)/);
+        const groupName = match ? match[1] : '';
+        const schedule = match ? match[2] : '';
+        return t('groupDetail.archive.cohortCreated', { group: groupName, schedule });
+      }
+      if (log.actionType === 'TRANSFER_APPROVED') {
+        const match = log.description.match(/(.+) transferred in from (.+) \(Teacher: (.+)\)/);
+        if (match) {
+          return t('groupDetail.archive.transferredIn', { student: match[1], fromGroup: match[2], teacher: match[3] });
+        }
+      }
+      if (log.actionType === 'STUDENT_TRANSFERRED_OUT') {
+        const match = log.description.match(/(.+) transferred out to (.+) \(Teacher: (.+)\)/);
+        if (match) {
+          return t('groupDetail.archive.transferredOut', { student: match[1], toGroup: match[2], teacher: match[3] });
+        }
+      }
+    }
+    return log.description;
+  };
 
   // Retrieve logs for this group sorted newest first
   const groupLogs = useMemo(() => {
@@ -73,12 +110,12 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
 
       let headerLabel = '';
       if (logDateStr === todayDateStr) {
-        headerLabel = 'Today';
+        headerLabel = t('groupDetail.archive.today');
       } else if (logDateStr === yesterdayDateStr) {
-        headerLabel = 'Yesterday';
+        headerLabel = t('groupDetail.archive.yesterday');
       } else {
         headerLabel = !isNaN(logDate.getTime())
-          ? logDate.toLocaleDateString('en-US', {
+          ? logDate.toLocaleDateString(undefined, {
               month: 'long',
               day: 'numeric',
               year: 'numeric'
@@ -98,7 +135,7 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
     });
 
     return Array.from(groupsMap.values());
-  }, [filteredLogs]);
+  }, [filteredLogs, t]);
 
   // Handle adding custom audit note
   const handleAddCustomNote = async (e: React.FormEvent) => {
@@ -127,8 +164,8 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
   const formatTime = (isoString: string) => {
     try {
       const d = new Date(isoString);
-      if (isNaN(d.getTime())) return 'Just now';
-      return d.toLocaleTimeString('en-US', {
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleTimeString(undefined, {
         hour: '2-digit',
         minute: '2-digit',
         hour12: true
@@ -144,7 +181,7 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
       case 'STUDENT_ENROLLED':
         return {
           icon: UserPlus,
-          badge: 'Student Enrolled',
+          badge: t('groupDetail.archive.actions.studentEnrolledTitle'),
           iconBg: 'bg-emerald-500 text-white shadow-xs ring-4 ring-emerald-50 dark:ring-emerald-950/40',
           badgeStyle: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/80',
           dotColor: 'bg-emerald-500'
@@ -152,7 +189,7 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
       case 'STUDENT_REMOVED':
         return {
           icon: UserMinus,
-          badge: 'Student Removed',
+          badge: t('groupDetail.archive.actions.studentRemovedTitle'),
           iconBg: 'bg-rose-500 text-white shadow-xs ring-4 ring-rose-50 dark:ring-rose-950/40',
           badgeStyle: 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/80',
           dotColor: 'bg-rose-500'
@@ -160,7 +197,7 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
       case 'STUDENT_TRANSFERRED_OUT':
         return {
           icon: ArrowRightLeft,
-          badge: 'Transferred Out',
+          badge: t('groupDetail.archive.actions.transferredOutTitle'),
           iconBg: 'bg-amber-500 text-white shadow-xs ring-4 ring-amber-50 dark:ring-amber-950/40',
           badgeStyle: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/80',
           dotColor: 'bg-amber-500'
@@ -168,7 +205,7 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
       case 'TRANSFER_APPROVED':
         return {
           icon: CheckCircle2,
-          badge: 'Transfer Approved',
+          badge: t('groupDetail.archive.actions.transferredInTitle'),
           iconBg: 'bg-blue-600 text-white shadow-xs ring-4 ring-blue-50 dark:ring-blue-950/40',
           badgeStyle: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/80',
           dotColor: 'bg-blue-600'
@@ -176,7 +213,7 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
       case 'TEACHER_ASSIGNED':
         return {
           icon: UserCheck,
-          badge: 'Teacher Assigned',
+          badge: t('groupDetail.archive.actions.teacherAssignedTitle'),
           iconBg: 'bg-purple-600 text-white shadow-xs ring-4 ring-purple-50 dark:ring-purple-950/40',
           badgeStyle: 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800/80',
           dotColor: 'bg-purple-600'
@@ -184,7 +221,7 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
       case 'GROUP_CREATED':
         return {
           icon: FolderPlus,
-          badge: 'Cohort Created',
+          badge: t('groupDetail.archive.actions.cohortCreatedTitle'),
           iconBg: 'bg-indigo-600 text-white shadow-xs ring-4 ring-indigo-50 dark:ring-indigo-950/40',
           badgeStyle: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/80',
           dotColor: 'bg-indigo-600'
@@ -193,7 +230,7 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
       default:
         return {
           icon: FileText,
-          badge: 'Audit Note',
+          badge: t('groupDetail.archive.actions.auditNote'),
           iconBg: 'bg-slate-600 text-white shadow-xs ring-4 ring-slate-100 dark:ring-slate-800',
           badgeStyle: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
           dotColor: 'bg-slate-600'
@@ -214,14 +251,14 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
-                  Group Activity & Archive Audit
+                  {t('groupDetail.archive.title')}
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                  {groupLogs.length} Events
+                  {t('groupDetail.archive.eventsCount', { count: groupLogs.length })}
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Immutable audit trail of cohort enrollments, transfers, instructor assignments, and notes
+                {t('groupDetail.archive.subtitle')}
               </p>
             </div>
           </div>
@@ -233,14 +270,14 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
             className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-bold shadow-xs transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer self-start md:self-center"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Audit Note</span>
+            <span>{t('groupDetail.archive.addNote')}</span>
           </button>
         </div>
 
         {/* Search bar & Actions bar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800/80">
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-            Chronological Activity Stream
+            {t('groupDetail.archive.streamTitle')}
           </p>
 
           {/* Search input */}
@@ -248,7 +285,7 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search activity by name or action..."
+              placeholder={t('groupDetail.archive.searchActivity')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800/60 text-slate-800 dark:text-slate-100 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400"
@@ -273,12 +310,12 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
             <Archive className="w-6 h-6" />
           </div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-            {searchQuery ? 'No matching audit records found' : 'No activity logged yet'}
+            {searchQuery ? t('groupDetail.archiveModal.noMatching') : t('groupDetail.archiveModal.noActivity')}
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
             {searchQuery
-              ? 'Try adjusting your search query to find the desired activity record.'
-              : 'All cohort actions, enrollments, student transfers, and custom notes will automatically appear here in chronological order.'}
+              ? t('groupDetail.archiveModal.searchHint')
+              : t('groupDetail.archiveModal.activityHint')}
           </p>
           {searchQuery && (
             <button
@@ -286,13 +323,13 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
               onClick={() => setSearchQuery('')}
               className="mt-4 px-3.5 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
             >
-              Clear search filter
+              {t('groupDetail.archiveModal.clearSearch')}
             </button>
           )}
         </div>
       ) : (
         <div className="space-y-8">
-          {groupedLogs.map((groupSection, groupIndex) => (
+          {groupedLogs.map((groupSection) => (
             <div key={groupSection.dateKey} className="space-y-3">
               {/* Clean Date Header */}
               <div className="flex items-center gap-3">
@@ -302,7 +339,7 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
                 </div>
                 <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
                 <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
-                  {groupSection.logs.length} {groupSection.logs.length === 1 ? 'event' : 'events'}
+                  {t('groupDetail.archive.events', { count: groupSection.logs.length })}
                 </span>
               </div>
 
@@ -339,7 +376,7 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
                             </span>
                             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
                               <User className="w-3.5 h-3.5 text-slate-400" />
-                              <span>by <strong className="text-slate-800 dark:text-slate-200 font-bold">{log.actorName}</strong></span>
+                              <span>{t('groupDetail.archive.byUser', { name: log.actorName })}</span>
                             </span>
                           </div>
 
@@ -351,7 +388,7 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
 
                         {/* Event Description */}
                         <p className="text-sm font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
-                          {log.description}
+                          {formatLogDescription(log)}
                         </p>
                       </div>
                     </motion.div>
@@ -380,17 +417,17 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                      Add Custom Audit Note
+                      {t('groupDetail.archiveModal.title')}
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Record an official log entry for {group.name}
+                      {t('groupDetail.archiveModal.subtitle', { group: group.name })}
                     </p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsAddNoteModalOpen(false)}
-                  className="p-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  className="p-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -399,14 +436,14 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
               <form onSubmit={handleAddCustomNote} className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Audit Note / Entry Details
+                    {t('groupDetail.archiveModal.label')}
                   </label>
                   <textarea
                     rows={4}
                     required
                     value={noteContent}
                     onChange={(e) => setNoteContent(e.target.value)}
-                    placeholder="e.g. Conducted term evaluation meeting with parents, reviewed mock exam results..."
+                    placeholder={t('groupDetail.archiveModal.placeholder')}
                     className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white rounded-2xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none transition-all placeholder:text-slate-400"
                   />
                 </div>
@@ -417,7 +454,7 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
                     onClick={() => setIsAddNoteModalOpen(false)}
                     className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
                   >
-                    Cancel
+                    {t('groupDetail.archiveModal.cancel')}
                   </button>
                   <button
                     type="submit"
@@ -425,11 +462,11 @@ export const GroupArchiveTab: React.FC<GroupArchiveTabProps> = ({ group }) => {
                     className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer flex items-center gap-1.5"
                   >
                     {isSubmittingNote ? (
-                      <span>Saving...</span>
+                      <span>{t('groupDetail.archiveModal.saving')}</span>
                     ) : (
                       <>
                         <Check className="w-3.5 h-3.5" />
-                        <span>Save to Archive</span>
+                        <span>{t('groupDetail.archiveModal.save')}</span>
                       </>
                     )}
                   </button>

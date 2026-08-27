@@ -170,9 +170,9 @@ export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({
         {assignedGroups.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 rounded-lg p-12 text-center space-y-3 border border-slate-200/60 dark:border-slate-800/80">
             <BookOpen className="w-10 h-10 text-slate-400 mx-auto" />
-            <h3 className="font-bold text-slate-800 dark:text-slate-200 text-base">No Assigned Cohorts</h3>
+            <h3 className="font-bold text-slate-800 dark:text-slate-200 text-base">No Assigned Groups</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-              This instructor is currently not assigned to any active cohorts.
+              This instructor is currently not assigned to any active groups.
             </p>
           </div>
         ) : (

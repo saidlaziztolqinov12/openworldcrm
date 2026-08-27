@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Group, Student, AttendanceRecord, MonthlyRosterStudent } from '../../types';
 import { useData } from '../../context/DataContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { AnimatedCounter } from '../common/AnimatedCounter';
 import { getLocalDate } from '../../lib/dateUtils';
 import {
@@ -50,6 +51,7 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({
   attendanceRecords
 }) => {
   const { getMonthlyAttendanceRoster } = useData();
+  const { t, language } = useLanguage();
 
   // Current selected month & year (defaulting to current date)
   const today = new Date();
@@ -97,10 +99,10 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({
     setSelectedMonth(today.getMonth());
   };
 
-  // Month Title (e.g. "August 2026")
-  const monthName = new Date(selectedYear, selectedMonth, 1).toLocaleString('en-US', {
-    month: 'long'
-  });
+  // Month Title (e.g. "August 2026" or "Avgust 2026")
+  const uzMonths = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
+  const enMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthName = language === 'uz' ? uzMonths[selectedMonth] : enMonths[selectedMonth];
   const monthYearTitle = `${monthName} ${selectedYear}`;
   const yearMonthStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
 
@@ -311,7 +313,7 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({
             onClick={handleJumpToCurrent}
             className="px-3 py-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-xs transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer"
           >
-            Today
+            {t('groupDetail.monthlySheet.today')}
           </button>
         </div>
 
@@ -320,14 +322,14 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-xs font-bold text-indigo-900 dark:text-indigo-200">
             <CalendarCheck2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
             <span>
-              <AnimatedCounter value={totalConductedSessions} /> {totalConductedSessions === 1 ? 'Lesson' : 'Lessons'} in {monthName}
+              <AnimatedCounter value={totalConductedSessions} /> {t('groupDetail.monthlySheet.lessonsInMonth', { count: totalConductedSessions, month: monthName })}
             </span>
           </div>
 
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-xs font-bold text-emerald-900 dark:text-emerald-200">
             <TrendingUp className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>
-              <AnimatedCounter value={monthlyTotalAttended} /> Total Attended Lessons
+              <AnimatedCounter value={monthlyTotalAttended} /> {t('groupDetail.monthlySheet.totalAttended', { count: monthlyTotalAttended })}
             </span>
           </div>
         </div>
@@ -336,35 +338,35 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({
       {/* Legend / Info guide with Historical Retention & Lock explanation */}
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs bg-slate-50 dark:bg-slate-900 px-4 py-2.5 rounded-md border border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-300 transition-colors">
         <div className="flex flex-wrap items-center gap-4">
-          <span className="font-bold text-slate-700 dark:text-slate-200">Cell Key:</span>
+          <span className="font-bold text-slate-700 dark:text-slate-200">{t('groupDetail.monthlySheet.cellKey')}:</span>
           <div className="flex items-center gap-1.5">
             <span className="w-5 h-5 rounded bg-green-50 dark:bg-emerald-950/80 border border-green-400 dark:border-emerald-600 text-green-700 dark:text-emerald-300 font-bold text-xs flex items-center justify-center shadow-xs">
               +
             </span>
-            <span>Present</span>
+            <span>{t('groupDetail.monthlySheet.presentLabel')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-5 h-5 rounded bg-red-50 dark:bg-rose-950/80 border border-red-400 dark:border-rose-600 text-red-700 dark:text-rose-300 font-bold text-xs flex items-center justify-center shadow-xs">
               -
             </span>
-            <span>Absent</span>
+            <span>{t('groupDetail.monthlySheet.absentLabel')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-5 h-5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 font-medium text-xs flex items-center justify-center">
               ?
             </span>
-            <span>No lesson recorded</span>
+            <span>{t('groupDetail.monthlySheet.noLessonLabel')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-5 h-5 rounded bg-slate-200/70 dark:bg-slate-800 text-slate-400 font-mono text-xs flex items-center justify-center">
               /
             </span>
-            <span>Locked (Post-Departure)</span>
+            <span>{t('groupDetail.monthlySheet.lockedLabel')}</span>
           </div>
         </div>
 
         <span className="text-[11px] text-slate-400 dark:text-slate-500">
-          💡 Swipe/scroll horizontally to inspect all days of {monthName}
+          {t('groupDetail.monthlySheet.swipeHint', { month: monthName })}
         </span>
       </div>
 
@@ -383,7 +385,7 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({
                   {/* Sticky left column for Student Name */}
                   <th className="sticky left-0 z-20 bg-slate-900 dark:bg-slate-950 px-4 py-3 min-w-[220px] max-w-[260px] border-r border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.1)]">
                     <div className="flex items-center justify-between">
-                      <span># Student Name</span>
+                      <span>{t('groupDetail.monthlySheet.studentName')}</span>
                       <span className="text-[10px] font-normal text-slate-400">({rosterStudents.length})</span>
                     </div>
                   </th>
@@ -418,8 +420,8 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({
                   {/* Summary Column */}
                   <th className="bg-slate-900 dark:bg-slate-950 px-3 py-3 text-center min-w-[120px] border-l border-slate-800">
                     <div className="flex flex-col items-center">
-                      <span>Monthly Summary</span>
-                      <span className="text-[10px] text-slate-400 font-normal">Attended / Total</span>
+                      <span>{t('groupDetail.monthlySheet.monthlySummary')}</span>
+                      <span className="text-[10px] text-slate-400 font-normal">{t('groupDetail.monthlySheet.attendedTotal')}</span>
                     </div>
                   </th>
                 </tr>
@@ -605,7 +607,7 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({
                   <td className="sticky left-0 z-10 bg-slate-100 dark:bg-slate-800 px-4 py-2.5 border-r border-slate-300 dark:border-slate-700 shadow-[2px_0_5px_rgba(0,0,0,0.04)]">
                     <div className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200 font-extrabold">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                      <span>Daily Present Count</span>
+                      <span>{t('groupDetail.monthlySheet.dailyPresentCount')}</span>
                     </div>
                   </td>
 
@@ -632,7 +634,7 @@ export const MonthlyAttendanceSheet: React.FC<MonthlyAttendanceSheetProps> = ({
                   <td className="sticky left-0 z-10 bg-indigo-900 dark:bg-indigo-950 px-4 py-2.5 border-r border-indigo-800 dark:border-indigo-900 shadow-[2px_0_5px_rgba(0,0,0,0.1)]">
                     <div className="flex items-center gap-1.5 text-indigo-100 font-extrabold">
                       <TrendingUp className="w-3.5 h-3.5 text-indigo-300" />
-                      <span>Cumulative Total</span>
+                      <span>{t('groupDetail.monthlySheet.cumulativeTotal')}</span>
                     </div>
                   </td>
 

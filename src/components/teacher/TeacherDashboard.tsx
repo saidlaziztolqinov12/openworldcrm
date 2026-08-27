@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { Group } from '../../types';
 import { GroupModal } from '../groups/GroupModal';
 import { CohortAnalyticsChart } from './CohortAnalyticsChart';
@@ -27,22 +28,53 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 }) => {
   const { currentUser } = useAuth();
   const { groups, students, attendanceRecords } = useData();
+  const { language, t } = useLanguage();
   const [isNewGroupModalOpen, setIsNewGroupModalOpen] = useState(false);
 
-  // Generate past 12 months options (e.g., "2026-08" -> "August 2026")
+  // Helper to format schedule days based on current language
+  const formatSchedule = (schedule: string): string => {
+    if (!schedule) return '';
+    const dayMap: Record<string, string> = {
+      'monday': t('days.monday'),
+      'tuesday': t('days.tuesday'),
+      'wednesday': t('days.wednesday'),
+      'thursday': t('days.thursday'),
+      'friday': t('days.friday'),
+      'saturday': t('days.saturday'),
+      'sunday': t('days.sunday'),
+      'mon': t('days.mon'),
+      'tue': t('days.tue'),
+      'wed': t('days.wed'),
+      'thu': t('days.thu'),
+      'fri': t('days.fri'),
+      'sat': t('days.sat'),
+      'sun': t('days.sun'),
+    };
+    let result = schedule;
+    for (const [key, val] of Object.entries(dayMap)) {
+      const regex = new RegExp(`\\b${key}\\b`, 'gi');
+      result = result.replace(regex, val);
+    }
+    return result;
+  };
+
+  // Generate past 12 months options
   const monthOptions = useMemo(() => {
+    const uzMonths = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
+    const enMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const opts: { value: string; label: string }[] = [];
     const date = new Date();
     for (let i = 0; i < 12; i++) {
       const year = date.getFullYear();
       const month = date.getMonth();
       const value = `${year}-${String(month + 1).padStart(2, '0')}`;
-      const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const monthName = language === 'uz' ? uzMonths[month] : enMonths[month];
+      const label = `${monthName} ${year}`;
       opts.push({ value, label });
       date.setMonth(date.getMonth() - 1);
     }
     return opts;
-  }, []);
+  }, [language]);
 
   const [selectedYearMonth, setSelectedYearMonth] = useState<string>(monthOptions[0]?.value || '2026-08');
 
@@ -55,7 +87,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const myGroupIds = new Set(myGroups.map((g) => g.id));
   const myStudents = students.filter((s) => myGroupIds.has(s.groupId) && s.status !== 'inactive');
 
-  const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const uzMonthsArr = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
+  const enMonthsArr = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const now = new Date();
+  const currentMonthName = `${language === 'uz' ? uzMonthsArr[now.getMonth()] : enMonthsArr[now.getMonth()]} ${now.getFullYear()}`;
 
   return (
     <div className="space-y-8 pb-20 md:pb-12 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 overflow-x-hidden">
@@ -66,13 +101,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         <div className="space-y-2 relative z-10">
           <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
             <Sparkles className="w-4 h-4" />
-            <span>Instructor Workspace • {currentMonthName}</span>
+            <span>{t('teacherDashboard.workspace')} • {currentMonthName}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-            Welcome back, {currentUser?.name}
+            {t('dashboard.welcome')}, {currentUser?.name}
           </h1>
           <p className="text-sm text-slate-300 max-w-xl">
-            You are managing <strong>{myGroups.length} active learning cohorts</strong> with {myStudents.length} enrolled students.
+            {t('teacherDashboard.managingSummary', { groups: myGroups.length, students: myStudents.length })}
           </p>
         </div>
 
@@ -81,7 +116,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           className="relative z-10 px-5 py-2.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-600/30 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>Create New Cohort</span>
+          <span>{t('teacherDashboard.createNewGroup')}</span>
         </button>
       </div>
 
@@ -89,7 +124,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">My Groups</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t('teacherDashboard.myGroups')}</h2>
           </div>
 
           <button
@@ -97,22 +132,22 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-colors border border-indigo-200/60 dark:border-indigo-800/60 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Add Group</span>
+            <span>{t('groups.addGroup')}</span>
           </button>
         </div>
 
         {myGroups.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 rounded-lg border-none p-12 text-center shadow-xs transition-colors">
             <BookOpen className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-slate-800 dark:text-white">No groups assigned yet</h3>
+            <h3 className="text-base font-bold text-slate-800 dark:text-white">{t('teacherDashboard.noGroupsAssigned')}</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-              Create a new learning cohort or ask the center admin to assign you to an existing group.
+              {language === 'uz' ? "Yangi guruh yarating yoki markaz adminidan guruh biriktirishini so'rang." : "Create a new learning cohort or ask the center admin to assign you to an existing group."}
             </p>
             <button
               onClick={() => setIsNewGroupModalOpen(true)}
               className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md text-xs font-bold shadow-xs hover:bg-indigo-700 cursor-pointer"
             >
-              Create My First Group
+              {t('teacherDashboard.createNewGroup')}
             </button>
           </div>
         ) : (
@@ -142,11 +177,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
                       <div className="flex items-center gap-2">
                         <Clock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">{group.schedule}</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{formatSchedule(group.schedule)}</span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                         <Users className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-                        <span><strong>{groupStudentList.length}</strong> enrolled students</span>
+                        <span>{t('teacherDashboard.enrolledStudents', { count: groupStudentList.length })}</span>
                       </div>
                     </div>
                   </div>
@@ -158,12 +193,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                       className="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <CalendarCheck2 className="w-3.5 h-3.5" />
-                      <span>Take Attendance</span>
+                      <span>{t('teacherDashboard.takeAttendance')}</span>
                     </button>
                     <button
                       onClick={() => onSelectGroup(group.id)}
                       className="p-2 rounded-md border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                      title="View Roster"
+                      title={t('teacherDashboard.viewDetails')}
                     >
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
@@ -186,4 +221,5 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     </div>
   );
 };
+
 

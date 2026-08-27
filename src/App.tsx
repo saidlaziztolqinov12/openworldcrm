@@ -9,6 +9,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider, useData } from './context/DataContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { AuthScreen } from './components/auth/AuthScreen';
 import { Sidebar } from './components/common/Sidebar';
 import { TopBar } from './components/common/TopBar';
@@ -392,11 +393,13 @@ const MainApp: React.FC = () => {
 export default function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <DataProvider>
-          <MainApp />
-        </DataProvider>
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <DataProvider>
+            <MainApp />
+          </DataProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </ThemeProvider>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { Group, User } from '../../types';
 import { GroupModal } from '../groups/GroupModal';
 import { TeacherModal } from './TeacherModal';
@@ -50,6 +51,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     reassignTeacher
   } = useData();
   const { isSuperAdmin } = useAuth();
+  const { t } = useLanguage();
+
+  const formatSchedule = (schedule: string): string => {
+    if (!schedule) return '';
+    const dayMap: Record<string, string> = {
+      'monday': t('days.monday'),
+      'tuesday': t('days.tuesday'),
+      'wednesday': t('days.wednesday'),
+      'thursday': t('days.thursday'),
+      'friday': t('days.friday'),
+      'saturday': t('days.saturday'),
+      'sunday': t('days.sunday'),
+      'mon': t('days.mon'),
+      'tue': t('days.tue'),
+      'wed': t('days.wed'),
+      'thu': t('days.thu'),
+      'fri': t('days.fri'),
+      'sat': t('days.sat'),
+      'sun': t('days.sun'),
+    };
+    let result = schedule;
+    for (const [key, val] of Object.entries(dayMap)) {
+      const regex = new RegExp(`\\b${key}\\b`, 'gi');
+      result = result.replace(regex, val);
+    }
+    return result;
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTeacherFilter, setSelectedTeacherFilter] = useState('all');
@@ -328,7 +356,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <BookOpen className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
             <h3 className="text-base font-bold text-slate-800 dark:text-white">No learning groups found</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-              {searchQuery ? 'Try adjusting your search criteria.' : 'Create your first learning cohort to get started.'}
+              {searchQuery ? 'Try adjusting your search criteria.' : 'Create your first learning group to get started.'}
             </p>
           </div>
         ) : (
@@ -389,7 +417,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
                       <div className="flex items-center gap-2">
                         <Clock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">{group.schedule}</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{formatSchedule(group.schedule)}</span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                         <Users className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
@@ -473,7 +501,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             <div className="p-3 bg-amber-50 dark:bg-amber-950/50 rounded-2xl border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-300">
-              Enrolled students will be automatically unassigned and marked as ready for new cohort placement.
+              Enrolled students will be automatically unassigned and marked as ready for new group placement.
             </div>
 
             <div className="flex items-center gap-3 pt-2">

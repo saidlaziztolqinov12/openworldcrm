@@ -5,7 +5,8 @@ import { useData } from '../../context/DataContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Sun, Moon, LogOut, ShieldCheck, User, BarChart2, Bell, Sparkles } from 'lucide-react';
 import { LogoutConfirmModal } from './LogoutConfirmModal';
-import { ChangeAvatarModal } from './ChangeAvatarModal';
+import { UserProfileModal } from '../profile/UserProfileModal';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 interface TopBarProps {
   activeTabTitle?: string;
@@ -98,8 +99,10 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTabTitle, onOpenTeacherAct
           </div>
         </div>
 
-        {/* Right Side: Standalone Theme Toggle, Notifications, Role Badge & Circular Profile */}
+        {/* Right Side: Language Switcher, Standalone Theme Toggle, Notifications, Role Badge & Circular Profile */}
         <div className="flex items-center gap-2 sm:gap-3">
+          <LanguageSwitcher />
+
           {/* Standalone Day/Night Mode Icon-Only Toggle with Motion Animation */}
           <motion.button
             id="topbar-theme-toggle-btn"
@@ -273,8 +276,8 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTabTitle, onOpenTeacherAct
         userName={currentUser?.name}
       />
 
-      {/* Change Avatar Modal */}
-      <ChangeAvatarModal
+      {/* User Profile Modal */}
+      <UserProfileModal
         isOpen={isAvatarModalOpen}
         onClose={() => setIsAvatarModalOpen(false)}
       />

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { CalendarCheck2, Search, Filter, BookOpen, Clock, Users, ArrowRight, Award } from 'lucide-react';
 
 interface TeacherAttendanceLogProps {
@@ -10,6 +11,7 @@ interface TeacherAttendanceLogProps {
 export const TeacherAttendanceLog: React.FC<TeacherAttendanceLogProps> = ({ onSelectGroup }) => {
   const { currentUser } = useAuth();
   const { groups, attendanceRecords } = useData();
+  const { t } = useLanguage();
 
   const [selectedGroupId, setSelectedGroupId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -35,10 +37,10 @@ export const TeacherAttendanceLog: React.FC<TeacherAttendanceLogProps> = ({ onSe
       <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Attendance & Grades Log
+            {t('attendanceOverview.title')}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Complete history of completed registers, grades, and covered curriculum topics
+            {t('attendanceOverview.description')}
           </p>
         </div>
 
@@ -49,7 +51,7 @@ export const TeacherAttendanceLog: React.FC<TeacherAttendanceLogProps> = ({ onSe
             onChange={(e) => setSelectedGroupId(e.target.value)}
             className="px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 outline-none"
           >
-            <option value="all">All My Groups</option>
+            <option value="all">{t('attendanceOverview.allMyGroups')}</option>
             {myGroups.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}

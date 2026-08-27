@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
-import { ChangeAvatarModal } from './ChangeAvatarModal';
+import { useLanguage } from '../../context/LanguageContext';
+import { UserProfileModal } from '../profile/UserProfileModal';
 import {
   GraduationCap,
   LayoutDashboard,
@@ -34,6 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { currentUser, isAdmin, isSuperAdmin } = useAuth();
   const { isOnline, students, groups, teachers, admins, notifications, studentPayments } = useData();
+  const { t } = useLanguage();
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
 
   const initials = currentUser?.firstName && currentUser?.surname
@@ -75,25 +77,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ? [
         {
           id: 'admin-dashboard',
-          label: 'Dashboard',
+          label: t('sidebar.dashboard'),
           icon: LayoutDashboard,
           badge: groups.filter((g) => !g.archived).length.toString()
         },
         {
           id: 'admin-students',
-          label: 'All Students',
+          label: t('sidebar.students'),
           icon: GraduationCap,
           badge: students.filter((s) => s.status !== 'inactive').length.toString()
         },
         {
           id: 'payments',
-          label: 'Payments',
+          label: t('sidebar.finances'),
           icon: CreditCard,
           badge: studentPayments.filter((p) => p.status === 'unpaid' || p.status === 'partial').length > 0 ? studentPayments.filter((p) => p.status === 'unpaid' || p.status === 'partial').length.toString() : undefined
         },
         {
           id: 'teachers',
-          label: 'Teachers Roster',
+          label: t('sidebar.teachers'),
           icon: UserCheck,
           badge: teachers.length.toString()
         },
@@ -101,25 +103,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ? [
               {
                 id: 'all-admins',
-                label: 'All Admins',
+                label: t('sidebar.allAdmins'),
                 icon: ShieldCheck,
                 badge: admins.length.toString()
               },
               {
                 id: 'salary-advances',
-                label: 'Salary Advances',
+                label: t('sidebar.salaryAdvances'),
                 icon: Wallet
               }
             ]
           : []),
         {
           id: 'analytics',
-          label: 'Analytics',
+          label: t('sidebar.analytics'),
           icon: BarChart3
         },
         {
           id: 'inbox',
-          label: 'Inbox',
+          label: t('sidebar.notifications'),
           icon: Inbox,
           badge: (pendingTransfers > 0 ? pendingTransfers : unreadCount > 0 ? unreadCount : undefined)?.toString()
         }
@@ -127,13 +129,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     : [
         {
           id: 'teacher-dashboard',
-          label: 'Dashboard',
+          label: t('sidebar.dashboard'),
           icon: BookOpen,
           badge: groups.filter((g) => g.teacherId === currentUser?.id && !g.archived).length.toString()
         },
         {
           id: 'teacher-students',
-          label: 'My Students',
+          label: t('sidebar.students'),
           icon: GraduationCap,
           badge: students.filter((s) => {
             const myGroupIds = new Set(
@@ -144,12 +146,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           id: 'teacher-attendance-history',
-          label: 'Attendance Log',
+          label: t('sidebar.attendance'),
           icon: CalendarCheck2
         },
         {
           id: 'inbox',
-          label: 'Inbox',
+          label: t('sidebar.notifications'),
           icon: Inbox,
           badge: unreadCount > 0 ? unreadCount.toString() : undefined
         }
@@ -357,8 +359,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Change Avatar Modal */}
-      <ChangeAvatarModal
+      {/* User Profile Modal */}
+      <UserProfileModal
         isOpen={isAvatarModalOpen}
         onClose={() => setIsAvatarModalOpen(false)}
       />

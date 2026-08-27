@@ -765,7 +765,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       actorId,
       actorName,
       actionType: 'GROUP_CREATED',
-      description: `Created cohort "${newGroup.name}" with schedule ${newGroup.schedule}`
+      description: `Created group "${newGroup.name}" with schedule ${newGroup.schedule}`
     });
 
     if (newGroup.teacherName) {
@@ -774,7 +774,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         actorId,
         actorName,
         actionType: 'TEACHER_ASSIGNED',
-        description: `Assigned Instructor ${newGroup.teacherName} to cohort`
+        description: `Assigned Instructor ${newGroup.teacherName} to group`
       });
     }
 
@@ -795,7 +795,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         actorId,
         actorName,
         actionType: 'TEACHER_ASSIGNED',
-        description: `Assigned Instructor ${groupData.teacherName} to cohort`
+        description: `Assigned Instructor ${groupData.teacherName} to group`
       });
     }
   };
@@ -840,7 +840,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       actorId,
       actorName,
       actionType: 'TEACHER_ASSIGNED',
-      description: `Assigned Instructor ${teacherName} to cohort`
+      description: `Assigned Instructor ${teacherName} to group`
     });
   };
 
@@ -865,7 +865,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         actorId,
         actorName,
         actionType: 'STUDENT_ENROLLED',
-        description: `Enrolled student ${newStudent.firstName} ${newStudent.surname} into cohort`
+        description: `Enrolled student ${newStudent.firstName} ${newStudent.surname} into group`
       });
     }
 
@@ -922,8 +922,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 1. If enrolled into newGroupId
     if (newGroupId) {
       const enrollDesc = prevGroup
-        ? `Enrolled student ${studentName} into cohort (transferred from ${prevGroup.name})`
-        : `Enrolled student ${studentName} into cohort`;
+        ? `Enrolled student ${studentName} into group (transferred from ${prevGroup.name})`
+        : `Enrolled student ${studentName} into group`;
 
       await logGroupActivity({
         groupId: newGroupId,
@@ -937,7 +937,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 2. If student had a previousGroupId
     if (previousGroupId && previousGroupId !== newGroupId) {
       if (newGroupId && newGroup) {
-        // Transferred out to another specific cohort
+        // Transferred out to another specific group
         await logGroupActivity({
           groupId: previousGroupId,
           actorId,
@@ -946,13 +946,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: `Student ${studentName} transferred out to ${newGroup.name}`
         });
       } else if (!newGroupId) {
-        // Removed/unassigned from cohort roster
+        // Removed/unassigned from group roster
         await logGroupActivity({
           groupId: previousGroupId,
           actorId,
           actorName,
           actionType: 'STUDENT_REMOVED',
-          description: `Removed student ${studentName} from cohort roster`
+          description: `Removed student ${studentName} from group roster`
         });
       }
     }

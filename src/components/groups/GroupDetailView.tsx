@@ -9,6 +9,7 @@ import {
 } from '../../types';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { StudentModal } from '../students/StudentModal';
 import { AddExistingStudentModal } from '../students/AddExistingStudentModal';
 import { RemoveStudentFromGroupModal } from '../students/RemoveStudentFromGroupModal';
@@ -64,6 +65,33 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
     removeStudentFromGroup
   } = useData();
   const { isAdmin, currentUser } = useAuth();
+  const { t, language } = useLanguage();
+
+  const formatSchedule = (schedule: string): string => {
+    if (!schedule) return '';
+    const dayMap: Record<string, string> = {
+      'monday': t('days.monday'),
+      'tuesday': t('days.tuesday'),
+      'wednesday': t('days.wednesday'),
+      'thursday': t('days.thursday'),
+      'friday': t('days.friday'),
+      'saturday': t('days.saturday'),
+      'sunday': t('days.sunday'),
+      'mon': t('days.mon'),
+      'tue': t('days.tue'),
+      'wed': t('days.wed'),
+      'thu': t('days.thu'),
+      'fri': t('days.fri'),
+      'sat': t('days.sat'),
+      'sun': t('days.sun'),
+    };
+    let result = schedule;
+    for (const [key, val] of Object.entries(dayMap)) {
+      const regex = new RegExp(`\\b${key}\\b`, 'gi');
+      result = result.replace(regex, val);
+    }
+    return result;
+  };
 
   const group = groups.find((g) => g.id === groupId);
   const assignedTeacher = teachers.find((t) => t.id === group?.teacherId);
@@ -306,7 +334,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-semibold shadow-xs transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to Groups</span>
+          <span>{t('groupDetail.backToGroups')}</span>
         </button>
 
         <div className="flex items-center gap-2">
@@ -315,7 +343,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold shadow-xs transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer"
           >
             <MessageSquare className="w-3.5 h-3.5" />
-            <span>Notify Parents</span>
+            <span>{t('groupDetail.notifyParents')}</span>
           </button>
 
           {isAdmin && (
@@ -324,7 +352,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-xs transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer"
             >
               <Edit2 className="w-3.5 h-3.5" />
-              <span>Edit Group Details</span>
+              <span>{t('groupDetail.editGroupDetails')}</span>
             </button>
           )}
         </div>
@@ -341,15 +369,15 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
             <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-slate-400">
               <div className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-slate-400" />
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{group.schedule}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatSchedule(group.schedule)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <TeacherAvatar teacher={assignedTeacher || { name: group.teacherName }} className="w-5 h-5" />
-                <span>Instructor: <strong className="text-slate-800 dark:text-slate-200">{group.teacherName}</strong></span>
+                <span>{t('groupDetail.instructor')}: <strong className="text-slate-800 dark:text-slate-200">{group.teacherName}</strong></span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Users className="w-4 h-4 text-slate-400" />
-                <span><strong className="text-slate-800 dark:text-slate-200">{groupStudents.length}</strong> Enrolled Students</span>
+                <span><strong className="text-slate-800 dark:text-slate-200">{groupStudents.length}</strong> {t('groupDetail.enrolledStudents', { count: groupStudents.length })}</span>
               </div>
             </div>
           </div>
@@ -366,11 +394,11 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
               onChange={(e) => setActiveTab(e.target.value as any)}
               className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md text-xs font-bold text-slate-800 dark:text-white outline-none shadow-xs"
             >
-              <option value="register">Attendance Register</option>
-              <option value="monthly">Monthly Sheet</option>
-              <option value="roster">Students Roster ({groupStudents.length})</option>
-              <option value="history">Session Logs ({groupRecords.length})</option>
-              <option value="archive">Group Archive ({groupActivityLogs.filter((l) => l.groupId === group.id).length})</option>
+              <option value="register">{t('groupDetail.tabs.attendance')}</option>
+              <option value="monthly">{t('groupDetail.tabs.monthlySheet')}</option>
+              <option value="roster">{t('groupDetail.tabs.roster')} ({groupStudents.length})</option>
+              <option value="history">{t('groupDetail.tabs.sessionLogs')} ({groupRecords.length})</option>
+              <option value="archive">{t('groupDetail.tabs.archive')} ({groupActivityLogs.filter((l) => l.groupId === group.id).length})</option>
             </select>
           </div>
 
@@ -385,7 +413,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
               }`}
             >
               <CalendarCheck2 className="w-3.5 h-3.5" />
-              <span>Attendance</span>
+              <span>{t('groupDetail.tabs.attendance')}</span>
             </button>
 
             <button
@@ -397,7 +425,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
               }`}
             >
               <CalendarDays className="w-3.5 h-3.5" />
-              <span>Monthly Sheet</span>
+              <span>{t('groupDetail.tabs.monthlySheet')}</span>
             </button>
 
             <button
@@ -409,7 +437,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              <span>Students Roster ({groupStudents.length})</span>
+              <span>{t('groupDetail.tabs.roster')} ({groupStudents.length})</span>
             </button>
 
             <button
@@ -421,7 +449,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
               }`}
             >
               <History className="w-3.5 h-3.5" />
-              <span>Session Logs ({groupRecords.length})</span>
+              <span>{t('groupDetail.tabs.sessionLogs')} ({groupRecords.length})</span>
             </button>
 
             <button
@@ -434,7 +462,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
             >
               <Archive className="w-3.5 h-3.5" />
               <span>
-                Group Archive (
+                {t('groupDetail.tabs.archive')} (
                 {groupActivityLogs.filter((l) => l.groupId === group.id).length}
                 )
               </span>
@@ -455,7 +483,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
               </div>
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
-                  Lesson Date
+                  {t('groupDetail.lessonDate')}
                 </label>
                 <input
                   type="date"
@@ -512,13 +540,13 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
             <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/30">
               <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Attendance list ({totalRoster} Students)</span>
+                <span>{t('groupDetail.attendanceTab.listTitle', { count: totalRoster })}</span>
               </h2>
             </div>
 
             {groupStudents.length === 0 ? (
               <div className="p-12 text-center text-slate-500 dark:text-slate-400 text-sm">
-                No students enrolled in this group yet. Click "Students Roster" to enroll students.
+                {t('groupDetail.noStudentsYet')}
               </div>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
@@ -559,7 +587,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                             </div>
                             <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-mono">
                               <Phone className="w-3 h-3 text-slate-400" />
-                              <span>Parent: {student.parentPhone}</span>
+                              <span>{t('groupDetail.attendanceTab.parent')}: {student.parentPhone}</span>
                             </div>
                           </div>
                         </div>
@@ -579,7 +607,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                             }`}
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Present</span>
+                            <span>{t('groupDetail.attendanceTab.present')}</span>
                           </button>
 
                           {/* Late Button */}
@@ -593,7 +621,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                             }`}
                           >
                             <Clock className="w-3.5 h-3.5" />
-                            <span>Late (K)</span>
+                            <span>{t('groupDetail.attendanceTab.late')}</span>
                           </button>
 
                           {/* Absent Button */}
@@ -607,7 +635,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                             }`}
                           >
                             <XCircle className="w-3.5 h-3.5" />
-                            <span>Absent</span>
+                            <span>{t('groupDetail.attendanceTab.absent')}</span>
                           </button>
                         </div>
                       </div>
@@ -619,7 +647,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                           <Award className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                           <div className="flex-1 flex items-center">
                             <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1.5 shrink-0">
-                              Mark:
+                              {t('groupDetail.attendanceTab.mark')}:
                             </label>
                             <input
                               type="number"
@@ -639,7 +667,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                           <MessageCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           <div className="flex-1 flex items-center">
                             <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1.5 shrink-0">
-                              Comment:
+                              {t('groupDetail.attendanceTab.comment')}:
                             </label>
                             <input
                               type="text"
@@ -665,7 +693,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                 {saveSuccess && (
                   <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/80 px-3 py-1.5 rounded-md border border-emerald-200 dark:border-emerald-800 animate-in fade-in">
                     <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    Attendance registered successfully & parents are notified!
+                    {t('groupDetail.attendanceSuccess')}
                   </span>
                 )}
                 {attendanceError && (
@@ -683,7 +711,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                   className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-xs sm:text-sm font-bold shadow-md shadow-indigo-600/25 flex items-center gap-2 transition-all hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
-                  <span>{savingAttendance ? 'Saving...' : 'Save Register'}</span>
+                  <span>{savingAttendance ? t('groupDetail.saving') : t('groupDetail.saveRegister')}</span>
                 </button>
               </div>
             </div>
@@ -724,7 +752,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                 className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-md text-xs font-bold border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1.5 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer shadow-xs"
               >
                 <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                <span>Add Existing Student</span>
+                <span>{t('groupDetail.rosterTab.addExisting')}</span>
               </button>
 
               <button
@@ -735,7 +763,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                 className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-xs font-bold shadow-md shadow-indigo-600/25 flex items-center justify-center gap-1.5 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Enroll New Student</span>
+                <span>{t('groupDetail.rosterTab.enrollNew')}</span>
               </button>
             </div>
           </div>
@@ -769,7 +797,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                             {student.firstName} {student.surname}
                           </h4>
                           <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Enrolled: {student.enrolledDate || 'Active'}
+                            {t('groupDetail.rosterTab.enrolledDate', { date: student.enrolledDate || 'Active' })}
                           </p>
                         </div>
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 uppercase tracking-wider">
@@ -782,7 +810,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                         {student.birthDate && (
                           <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
                             <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span>DOB: <strong>{new Date(student.birthDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</strong></span>
+                            <span>{t('groupDetail.rosterTab.dob', { date: new Date(student.birthDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) })}</span>
                           </div>
                         )}
 
@@ -798,7 +826,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                             title="Send Native SMS"
                           >
                             <Send className="w-3 h-3" />
-                            <span>SMS</span>
+                            <span>{t('groupDetail.rosterTab.sms')}</span>
                           </a>
                         </div>
                       </div>
@@ -811,39 +839,39 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                     </div>
 
                     {/* Actions */}
-                    <div className="pt-3.5 mt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                    <div className="pt-3.5 mt-3.5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <button
                           onClick={() => setProfileDrawerStudent(student)}
-                          className="px-2.5 py-1.5 rounded-md border border-indigo-200 dark:border-indigo-800/80 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center gap-1 cursor-pointer"
+                          className="px-2 py-1.5 rounded-md border border-indigo-200 dark:border-indigo-800/80 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
                           title="Check Student Profile & History"
                         >
                           <Users className="w-3 h-3" />
-                          <span>Profile</span>
+                          <span>{t('groupDetail.rosterTab.profile')}</span>
                         </button>
                         <button
                           onClick={() => {
                             setStudentToOffer(student);
                             setIsOfferModalOpen(true);
                           }}
-                          className="px-2.5 py-1.5 rounded-md border border-indigo-200 dark:border-indigo-800/80 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center gap-1 cursor-pointer"
+                          className="px-2 py-1.5 rounded-md border border-indigo-200 dark:border-indigo-800/80 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
                           title="Offer student to another group"
                         >
                           <Send className="w-3 h-3" />
-                          <span>Offer</span>
+                          <span>{t('groupDetail.rosterTab.offer')}</span>
                         </button>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <button
                           onClick={() => {
                             setStudentToEdit(student);
                             setIsStudentModalOpen(true);
                           }}
-                          className="px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center gap-1 cursor-pointer"
+                          className="px-2 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
                         >
                           <Edit2 className="w-3 h-3" />
-                          <span>Edit</span>
+                          <span>{t('groupDetail.rosterTab.edit')}</span>
                         </button>
                         <button
                           onClick={() =>
@@ -852,11 +880,11 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                               `${student.firstName} ${student.surname}`
                             )
                           }
-                          className="px-2.5 py-1.5 rounded-md border border-rose-300 dark:border-rose-700 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center gap-1 cursor-pointer"
+                          className="px-2 py-1.5 rounded-md border border-rose-300 dark:border-rose-700 text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-all hover:-translate-y-0.5 active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
                           title="Kick student from this group"
                         >
                           <Trash2 className="w-3 h-3" />
-                          <span>Kick</span>
+                          <span>{t('groupDetail.rosterTab.kick')}</span>
                         </button>
                       </div>
                     </div>
@@ -873,16 +901,16 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
         <div className="bg-white dark:bg-slate-900 rounded-lg border-none overflow-hidden shadow-xs transition-colors">
           <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-950/40">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-              Historical Attendance Records ({groupRecords.length} Sessions)
+              {t('groupDetail.sessionLogs.title', { count: groupRecords.length })}
             </h3>
             <span className="text-xs text-slate-500 dark:text-slate-400">
-              Click any date to view and edit that day's roll, marks, and comments
+              {t('groupDetail.sessionLogs.subtitle')}
             </span>
           </div>
 
           {groupRecords.length === 0 ? (
             <div className="p-12 text-center text-slate-500 dark:text-slate-400 text-sm">
-              No historical records found for this group yet.
+              {t('groupDetail.sessionLogs.noRecords')}
             </div>
           ) : (
             <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
@@ -916,39 +944,39 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                           })}
                         </span>
                         <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700">
-                          {pct}% Attendance
+                          {t('groupDetail.attendancePct', { pct })}
                         </span>
                         {marksAssessedCount > 0 && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-semibold border border-indigo-200 dark:border-indigo-800 flex items-center gap-1">
                             <Award className="w-3 h-3" />
-                            {marksAssessedCount} Graded
+                            {t('groupDetail.sessionLogs.gradedCount', { count: marksAssessedCount })}
                           </span>
                         )}
                       </div>
                       {rec.topicCovered && (
                         <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-                          Topic: <span className="text-slate-900 dark:text-white">{rec.topicCovered}</span>
+                          {t('groupDetail.topic')}: <span className="text-slate-900 dark:text-white">{rec.topicCovered}</span>
                         </p>
                       )}
                       {rec.notes && (
                         <p className="text-xs text-slate-400 dark:text-slate-500 italic">
-                          Notes: {rec.notes}
+                          {t('groupDetail.notes')}: {rec.notes}
                         </p>
                       )}
                     </div>
 
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-2 text-xs">
-                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">{pCount} Present</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">{t('groupDetail.presentCount', { count: pCount })}</span>
                         <span className="text-slate-300 dark:text-slate-600">•</span>
-                        <span className="text-rose-600 dark:text-rose-400 font-bold">{aCount} Absent</span>
+                        <span className="text-rose-600 dark:text-rose-400 font-bold">{t('groupDetail.absentCount', { count: aCount })}</span>
                       </div>
 
                       <button
                         type="button"
                         className="px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-700 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer"
                       >
-                        Open Roll
+                        {t('groupDetail.openRoll')}
                       </button>
                     </div>
                   </motion.div>
