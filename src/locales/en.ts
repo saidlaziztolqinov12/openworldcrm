@@ -342,5 +342,10 @@ export const en = {
     studentAddedSuccess: "Student successfully added to group",
     groupSettings: "Group Settings",
     deleteGroupWarning: "Deleting this group will unassign students and remove its active status. This cannot be undone."
+  },
+  backup: {
+    downloadBtn: "Download Backup (.json & .doc)",
+    successToast: "Backup files (.json and .doc) downloaded successfully",
+    loading: "Generating Backup..."
   }
 };

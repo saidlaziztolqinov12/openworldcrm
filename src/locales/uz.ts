@@ -342,5 +342,10 @@ export const uz = {
     studentAddedSuccess: "O'quvchi guruhga muvaffaqiyatli qo'shildi",
     groupSettings: "Guruh sozlamalari",
     deleteGroupWarning: "Ushbu guruhni o'chirish o'quvchilarni biriktiruvdan chiqaradi va faol holatini bekor qiladi. Bu amalni ortga qaytarib bo'lmaydi."
+  },
+  backup: {
+    downloadBtn: "Zaxira nusxani yuklab olish (.json & .doc)",
+    successToast: "Zaxira fayllari (.json va .doc) muvaffaqiyatli yuklab olindi",
+    loading: "Zaxira yaratilmoqda..."
   }
 };

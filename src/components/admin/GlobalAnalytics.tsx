@@ -1,7 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { AnimatedCounter } from '../common/AnimatedCounter';
 import { getLocalMonth } from '../../lib/dateUtils';
+import { exportAcademyBackup } from '../../utils/exportBackup';
 import {
   BarChart3,
   TrendingUp,
@@ -21,9 +24,13 @@ interface GlobalAnalyticsProps {
 
 export const GlobalAnalytics: React.FC<GlobalAnalyticsProps> = ({ onSelectGroup }) => {
   const { groups, teachers, students, attendanceRecords } = useData();
+  const { isSuperAdmin } = useAuth();
+  const { t } = useLanguage();
 
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState(getLocalMonth());
+  const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Filter attendance records by month and group
   const filteredRecords = useMemo(() => {
@@ -91,6 +98,11 @@ export const GlobalAnalytics: React.FC<GlobalAnalyticsProps> = ({ onSelectGroup 
 
   return (
     <div className="space-y-6 pb-20 md:pb-12 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 overflow-x-hidden">
+      {toastMessage && (
+        <div className="fixed top-5 right-5 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-bold animate-in fade-in slide-in-from-top-3">
+          <span>{toastMessage}</span>
+        </div>
+      )}
       {/* Header */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-lg border-none shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
         <div>
@@ -126,6 +138,35 @@ export const GlobalAnalytics: React.FC<GlobalAnalyticsProps> = ({ onSelectGroup 
               </option>
             ))}
           </select>
+
+          {isSuperAdmin && (
+            <button
+              onClick={async () => {
+                setIsDownloadingBackup(true);
+                try {
+                  await exportAcademyBackup();
+                  setToastMessage(t('backup.successToast'));
+                  setTimeout(() => setToastMessage(null), 4000);
+                } catch (err) {
+                  console.error('Backup export failed:', err);
+                  setToastMessage('Failed to export backup files');
+                  setTimeout(() => setToastMessage(null), 4000);
+                } finally {
+                  setIsDownloadingBackup(false);
+                }
+              }}
+              disabled={isDownloadingBackup}
+              className="px-4 py-2 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              title="Download backup (.json & .doc)"
+            >
+              {isDownloadingBackup ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 text-emerald-200" />
+              )}
+              <span>{isDownloadingBackup ? t('backup.loading') : t('backup.downloadBtn')}</span>
+            </button>
+          )}
 
           <button
             onClick={handleExportCSV}
