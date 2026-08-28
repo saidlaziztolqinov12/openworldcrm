@@ -148,13 +148,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="space-y-2 relative z-10">
           <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider">
             <ShieldCheck className="w-4 h-4" />
-            <span>Center Director Hub • Global Administration</span>
+            <span>{t('adminDashboard.hub')}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-            Learning Center Management
+            {t('adminDashboard.title')}
           </h1>
           <p className="text-sm text-slate-300 max-w-2xl">
-            Monitor center-wide performance, reassign instructors, manage student rosters, and inspect attendance in real time.
+            {t('adminDashboard.subtitle')}
           </p>
         </div>
 
@@ -166,7 +166,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               title="Manage Teacher Salary Advances"
             >
               <Wallet className="w-4 h-4 text-indigo-400" />
-              <span>Salary Advances</span>
+              <span>{t('adminDashboard.salaryAdvances')}</span>
             </button>
           )}
 
@@ -176,7 +176,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               className="px-3.5 py-2.5 rounded-md bg-purple-900/60 hover:bg-purple-900 text-purple-100 text-xs font-bold border border-purple-700/60 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
             >
               <Plus className="w-4 h-4 text-purple-300" />
-              <span>Add Admin</span>
+              <span>{t('adminDashboard.addAdmin')}</span>
             </button>
           )}
 
@@ -185,7 +185,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             className="px-4 py-2.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-bold border border-slate-700 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
           >
             <Plus className="w-4 h-4 text-indigo-400" />
-            <span>Add Teacher</span>
+            <span>{t('adminDashboard.addTeacher')}</span>
           </button>
 
           <button
@@ -196,7 +196,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             className="px-5 py-2.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition-all flex items-center gap-2 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Create Group</span>
+            <span>{t('adminDashboard.createGroup')}</span>
           </button>
         </div>
       </div>
@@ -211,7 +211,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white">Active Students</span>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white">{t('adminDashboard.activeStudents')}</span>
             <div className="w-8 h-8 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
               <Users className="w-4 h-4" strokeWidth={2.2} />
             </div>
@@ -221,11 +221,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
                 <AnimatedCounter value={totalActiveStudents} durationMs={3000} />
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">Enrolled across all groups</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">{t('adminDashboard.enrolledAcross')}</p>
             </div>
             {onNavigateStudents && (
               <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                View All →
+                {t('adminDashboard.viewAll')}
               </span>
             )}
           </div>
@@ -234,7 +234,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Active Groups */}
         <div className="bg-white dark:bg-slate-900 p-5 rounded-lg border-none shadow-xs transition-all duration-300">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Active Groups</span>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{t('adminDashboard.activeGroups')}</span>
             <div className="w-8 h-8 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center">
               <BookOpen className="w-4 h-4" strokeWidth={2.2} />
             </div>
@@ -244,7 +244,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <AnimatedCounter value={activeGroups.length} durationMs={3000} />
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-              <AnimatedCounter value={teachers.length} durationMs={3000} /> Active Instructors
+              <AnimatedCounter value={teachers.length} durationMs={3000} /> {t('adminDashboard.activeInstructors')}
             </p>
           </div>
         </div>
@@ -252,7 +252,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Lessons this month */}
         <div className="bg-white dark:bg-slate-900 p-5 rounded-lg border-none shadow-xs transition-all duration-300">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Sessions Logged</span>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{t('adminDashboard.sessionsLogged')}</span>
             <div className="w-8 h-8 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
               <CalendarCheck2 className="w-4 h-4" strokeWidth={2.2} />
             </div>
@@ -262,7 +262,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <AnimatedCounter value={totalLessonsConductedThisMonth} durationMs={3000} />
             </div>
             <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">
-              Conducted this month
+              {t('adminDashboard.conductedThisMonth')}
             </p>
           </div>
         </div>
@@ -273,7 +273,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           className="bg-white dark:bg-slate-900 p-5 rounded-lg border-none shadow-xs transition-all duration-300 cursor-pointer hover:shadow-md hover:-translate-y-1 group"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white">Total Teachers</span>
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white">{t('adminDashboard.totalTeachers')}</span>
             <div className="w-8 h-8 rounded-md bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
               <GraduationCap className="w-4 h-4" strokeWidth={2.2} />
             </div>
@@ -283,10 +283,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
                 <AnimatedCounter value={teachers.length} durationMs={3000} />
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">Active instructors</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">{t('adminDashboard.activeInstructorsLower')}</p>
             </div>
             <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
-              Manage →
+              {t('adminDashboard.manage')}
             </span>
           </div>
         </div>
@@ -306,7 +306,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search groups, schedule, teacher..."
+                placeholder={t('adminDashboard.searchPlaceholder')}
                 className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs sm:text-sm text-slate-800 dark:text-white placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors"
               />
             </div>
@@ -317,7 +317,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onChange={(e) => setSelectedTeacherFilter(e.target.value)}
               className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-semibold text-slate-800 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 outline-none transition-colors"
             >
-              <option value="all">All Teachers ({teachers.length})</option>
+              <option value="all">{t('adminDashboard.allTeachers', { count: teachers.length })}</option>
               {teachers.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -334,7 +334,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 onChange={(e) => setShowArchived(e.target.checked)}
                 className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-700 dark:bg-slate-800"
               />
-              <span>Show Archived</span>
+              <span>{t('adminDashboard.showArchived')}</span>
             </label>
 
             <button
@@ -345,7 +345,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               className="px-3.5 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>New Group</span>
+              <span>{t('adminDashboard.newGroup')}</span>
             </button>
           </div>
         </div>
@@ -354,9 +354,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {filteredGroups.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 rounded-lg border-none p-12 text-center shadow-xs transition-colors">
             <BookOpen className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-slate-800 dark:text-white">No learning groups found</h3>
+            <h3 className="text-base font-bold text-slate-800 dark:text-white">{t('adminDashboard.noGroupsFound')}</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-              {searchQuery ? 'Try adjusting your search criteria.' : 'Create your first learning group to get started.'}
+              {searchQuery ? t('adminDashboard.tryAdjusting') : t('adminDashboard.createFirst')}
             </p>
           </div>
         ) : (
@@ -377,7 +377,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <div>
                         {group.archived && (
                           <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                            Archived
+                            {t('adminDashboard.archived')}
                           </span>
                         )}
                         <h3 className="font-extrabold text-slate-900 dark:text-white text-base mt-1 leading-snug">
@@ -392,21 +392,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             setIsNewGroupModalOpen(true);
                           }}
                           className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                          title="Edit Group"
+                          title={t('adminDashboard.editGroup')}
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => archiveGroup(group.id, !group.archived)}
                           className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                          title={group.archived ? 'Restore Group' : 'Archive Group'}
+                          title={group.archived ? t('adminDashboard.restoreGroup') : t('adminDashboard.archiveGroup')}
                         >
                           {group.archived ? <RotateCcw className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
                         </button>
                         <button
                           onClick={() => setGroupToDelete(group)}
                           className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer"
-                          title="Delete Group"
+                          title={t('adminDashboard.deleteGroup')}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -421,14 +421,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                       <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                         <Users className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-                        <span><strong>{groupStudentsList.length}</strong> Enrolled Students</span>
+                        <span><strong>{groupStudentsList.length}</strong> {t('adminDashboard.enrolledStudents', { count: groupStudentsList.length })}</span>
                       </div>
                     </div>
 
                     {/* Teacher Reassignment Dropdown */}
                     <div className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-md border border-slate-100 dark:border-slate-700/60">
                       <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-                        Assigned Teacher (Admin Reassign)
+                        {t('adminDashboard.assignedTeacher')}
                       </label>
                       <select
                         value={group.teacherId}
@@ -450,7 +450,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       onClick={() => onSelectGroup(group.id)}
                       className="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <span>Open Roster & Attendance</span>
+                      <span>{t('adminDashboard.openRoster')}</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -475,7 +475,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         isOpen={isTeacherModalOpen}
         onClose={() => setIsTeacherModalOpen(false)}
         onSuccess={() => {
-          setToastMessage('Account created successfully with login credentials.');
+          setToastMessage(t('adminDashboard.accountCreated'));
           setTimeout(() => setToastMessage(null), 3500);
         }}
       />
@@ -490,18 +490,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             <div className="text-center space-y-2">
               <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
-                Delete Group
+                {t('adminDashboard.deleteGroup')}
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                Are you sure you want to permanently delete{' '}
-                <strong className="text-slate-900 dark:text-white">
-                  "{groupToDelete.name}"
-                </strong>? All associated records will be removed.
+                {t('adminDashboard.deleteConfirmText').replace('{name}', groupToDelete.name)}
               </p>
             </div>
 
             <div className="p-3 bg-amber-50 dark:bg-amber-950/50 rounded-2xl border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-300">
-              Enrolled students will be automatically unassigned and marked as ready for new group placement.
+              {t('adminDashboard.deleteWarning')}
             </div>
 
             <div className="flex items-center gap-3 pt-2">
@@ -511,7 +508,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 disabled={isDeletingGroup}
                 className="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -520,7 +517,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/25 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>{isDeletingGroup ? 'Deleting...' : 'Delete Group'}</span>
+                <span>{isDeletingGroup ? t('adminDashboard.deleting') : t('adminDashboard.deleteGroup')}</span>
               </button>
             </div>
           </div>
@@ -532,7 +529,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         isOpen={isAddAdminModalOpen}
         onClose={() => setIsAddAdminModalOpen(false)}
         onSuccess={() => {
-          setToastMessage('Admin account created successfully.');
+          setToastMessage(t('adminDashboard.adminCreated'));
           setTimeout(() => setToastMessage(null), 3500);
         }}
       />
