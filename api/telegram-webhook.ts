@@ -72,7 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const inputId = text.replace('/start', '').trim().toUpperCase();
 
       if (!inputId || text === '/start') {
-        const greeting = "Assalomu alaykum! Open World Academy xabarnoma botiga xush kelibsiz. 🎓\n\nFarzandingizning davomati va baholarini kuzatib borish uchun uning <b>Talaba ID</b> raqamini yuboring:\n\n(Masalan: <code>ST-101</code> yoki <code>OW-1004</code>)";
+        const greeting = "Assalomu alaykum! Open World xabarnoma botiga xush kelibsiz. 🎓\n\nFarzandingizning davomati va baholarini kuzatib borish uchun uning Talaba ID raqamini yuboring:\n\n(Masalan: 02030)";
         await sendTelegramReply(token, chatId, greeting);
         return res.status(200).json({ ok: true });
       }
@@ -108,7 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       if (!matchedStudent) {
-        const notFoundText = "❌ <b>Bunday ID raqamli talaba topilmadi.</b>\n\nIltimos, ID raqamini to'g'ri kiritganingizni tekshiring (masalan: <code>ST-101</code>) yoki o'quv markazi ma'muriyatiga murojaat qiling.";
+        const notFoundText = "❌ Bunday ID raqamli talaba topilmadi.\n\nIltimos, ID raqamini to'g'ri kiritganingizni tekshiring (masalan: 02030) yoki o'quv markazi ma'muriyatiga murojaat qiling.";
         await sendTelegramReply(token, chatId, notFoundText);
       } else {
         const studentDocRef = doc(db, 'students', matchedStudent.id);
@@ -120,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           telegramConnectedAt: new Date().toISOString()
         });
 
-        const successText = `✅ <b>Muvaffaqiyatli ulandi!</b>\n\n👤 <b>Talaba:</b> ${matchedStudent.name}\n📚 <b>Guruh:</b> ${matchedStudent.groupName}\n\nEndi davomat belgilanganda (kelmadi, kechikdi) va to'lov hisobotlari avtomatik ravishda ushbu chatga yuboriladi.`;
+        const successText = `✅ Muvaffaqiyatli ulandi!\n\n👤 Talaba: ${matchedStudent.name}\n📚 Guruh: ${matchedStudent.groupName || 'Biriktirilgan'}\n\nEndi davomat belgilanganda (kelmadi, kechikdi) va to'lov hisobotlari avtomatik ravishda ushbu chatga yuboriladi.`;
         await sendTelegramReply(token, chatId, successText);
       }
 
