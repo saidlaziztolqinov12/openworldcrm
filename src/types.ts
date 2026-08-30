@@ -83,6 +83,10 @@ export interface Student {
   transferDate?: string;
   telegramChatId?: string;
   parentTelegramId?: string;
+  telegramParentName?: string;
+  telegramUsername?: string;
+  telegramConnectedAt?: string;
+  customId?: string;
 }
 
 export interface AttendanceStats {

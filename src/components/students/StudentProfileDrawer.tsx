@@ -2,26 +2,87 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Student } from '../../types';
 import { useData } from '../../context/DataContext';
-import { X, Phone, Calendar, BookOpen, Clock, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { doc, updateDoc, deleteField } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { X, Phone, Calendar, BookOpen, Clock, ShieldCheck, ChevronDown, ChevronUp, Send } from 'lucide-react';
 import { TeacherAvatar } from '../common/TeacherAvatar';
+import { TelegramIcon } from '../common/TelegramIcon';
 
 interface StudentProfileDrawerProps {
   student: Student | null;
   isOpen: boolean;
   onClose: () => void;
+  onStudentUpdated?: (updated: Student) => void;
 }
 
 export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
-  student,
+  student: initialStudent,
   isOpen,
-  onClose
+  onClose,
+  onStudentUpdated
 }) => {
-  const { groups, teachers, attendanceRecords } = useData();
+  const { groups, teachers, attendanceRecords, students, updateStudent } = useData();
 
   const [isCurrentExpanded, setIsCurrentExpanded] = useState(false);
   const [expandedPastGroups, setExpandedPastGroups] = useState<Record<string, boolean>>({});
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  if (!isOpen || !student) return null;
+  if (!isOpen || !initialStudent) return null;
+
+  const student = students.find((s) => s.id === initialStudent.id) || initialStudent;
+  const displayStudentId = student.studentId || student.customId || student.id;
+
+  const handleDisconnectTelegram = async () => {
+    const docId = student.id || (student as any)._id || (student as any).docId;
+    if (!docId) {
+      console.error("No valid document ID found on student object:", student);
+      alert("Talaba ID topilmadi");
+      return;
+    }
+    try {
+      setDisconnecting(true);
+      const studentRef = doc(db, 'students', docId);
+      await updateDoc(studentRef, {
+        telegramChatId: deleteField(),
+        parentTelegramId: deleteField(),
+        telegramParentName: deleteField(),
+        telegramUsername: deleteField(),
+        telegramConnectedAt: deleteField()
+      });
+
+      await updateStudent(docId, {
+        telegramChatId: undefined,
+        parentTelegramId: undefined,
+        telegramParentName: undefined,
+        telegramUsername: undefined,
+        telegramConnectedAt: undefined
+      });
+
+      const updatedStudent: Student = {
+        ...student,
+        telegramChatId: null as any,
+        parentTelegramId: null as any,
+        telegramParentName: null as any,
+        telegramUsername: null as any,
+        telegramConnectedAt: null as any
+      };
+
+      if (typeof onStudentUpdated === 'function') {
+        onStudentUpdated(updatedStudent);
+      }
+
+      setConfirmDisconnect(false);
+      setSuccessMessage("Telegram ulanishi muvaffaqiyatli uzildi");
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } catch (error: any) {
+      console.error("Detailed Disconnect Error:", error);
+      alert(`Xatolik: ${error.message || "Ulanishni uzib bo'lmadi"}`);
+    } finally {
+      setDisconnecting(false);
+    }
+  };
 
   const currentGroup = student.groupId ? groups.find((g) => g.id === student.groupId) : null;
   const currentGroupTeacher = currentGroup
@@ -135,7 +196,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                 </h2>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-md border border-indigo-200/60 dark:border-indigo-800/60">
-                    ID: #{student.studentId || student.id.slice(-5)}
+                    ID: #{displayStudentId}
                   </span>
                   <span
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide ${
@@ -203,16 +264,92 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               </div>
             </div>
 
-            {student.telegramChatId || student.parentTelegramId ? (
-              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-                <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-                  Parent Telegram Chat ID
-                </div>
-                <div className="text-xs font-bold font-mono text-slate-800 dark:text-slate-200">
-                  {student.telegramChatId || student.parentTelegramId}
-                </div>
+            {/* Dedicated Telegram Notifications Card */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <TelegramIcon className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">
+                  Telegram Notifications
+                </h3>
               </div>
-            ) : null}
+
+              {successMessage && (
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs text-emerald-800 dark:text-emerald-200 font-semibold animate-in fade-in">
+                  {successMessage}
+                </div>
+              )}
+
+              {student.telegramChatId || student.parentTelegramId ? (
+                <div className="p-4 bg-sky-50/70 dark:bg-sky-950/40 rounded-2xl border border-sky-200 dark:border-sky-800/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-sky-100 text-sky-700 dark:bg-sky-900/80 dark:text-sky-300">
+                      <TelegramIcon className="w-3.5 h-3.5" />
+                      Telegram Faol / Connected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDisconnect(true)}
+                      disabled={disconnecting}
+                      className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 rounded-lg text-xs font-bold border border-rose-200 dark:border-rose-800 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {disconnecting ? 'Uzilmoqda...' : 'Ulanishni uzish'}
+                    </button>
+                  </div>
+
+                  {confirmDisconnect && (
+                    <div className="flex items-center gap-2 mt-2 p-2 bg-red-50 dark:bg-red-950/40 rounded-lg border border-red-200 dark:border-red-800">
+                      <p className="text-xs text-red-700 dark:text-red-400 flex-1">Rostdan ham uzmoqchimisiz?</p>
+                      <button
+                        type="button"
+                        onClick={handleDisconnectTelegram}
+                        disabled={disconnecting}
+                        className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded disabled:opacity-50"
+                      >
+                        Ha, uzish
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDisconnect(false)}
+                        className="px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs rounded"
+                      >
+                        Bekor qilish
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-sky-100 dark:border-sky-900/60">
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Parent / User</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        {student.telegramParentName || 'Mavjud emas'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Username</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                        @{student.telegramUsername || "Noma'lum"}
+                      </span>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Linked Date</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        {student.telegramConnectedAt ? new Date(student.telegramConnectedAt).toLocaleString() : '—'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-amber-50/70 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800/80 space-y-2.5 text-xs">
+                  <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-bold">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    Ota-ona Telegram botga ulanmagan
+                  </div>
+                  <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                    Ota-ona botga ulanmagan. Ulash uchun botga ushbu ID ni yuboring: <strong className="font-mono text-slate-900 dark:text-white bg-amber-100/80 dark:bg-amber-900/50 px-1.5 py-0.5 rounded">{displayStudentId}</strong>
+                  </p>
+                </div>
+              )}
+            </div>
 
             {/* Notes if any */}
             {student.notes && (

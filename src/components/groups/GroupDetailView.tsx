@@ -20,6 +20,7 @@ import { GroupModal } from './GroupModal';
 import { MonthlyAttendanceSheet } from './MonthlyAttendanceSheet';
 import { GroupArchiveTab } from './GroupArchiveTab';
 import { TeacherAvatar } from '../common/TeacherAvatar';
+import { TelegramIcon } from '../common/TelegramIcon';
 import { createSmsUri } from '../../lib/sms';
 import { getLocalDate } from '../../lib/dateUtils';
 import confetti from 'canvas-confetti';
@@ -836,6 +837,21 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                           {student.notes}
                         </p>
                       )}
+
+                      {/* Telegram Status Badge */}
+                      <div className="pt-1">
+                        {student.telegramChatId || student.parentTelegramId ? (
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400 border border-sky-200 dark:border-sky-800 shadow-sm">
+                            <TelegramIcon className="w-3.5 h-3.5" />
+                            <span>Connected</span>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800 shadow-sm">
+                            <TelegramIcon className="w-3.5 h-3.5 opacity-70" />
+                            <span>Not Connected</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Actions */}
