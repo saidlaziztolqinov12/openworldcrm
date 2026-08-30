@@ -69,9 +69,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Handle /start or message input
-      const inputId = text.replace('/start', '').trim().toUpperCase();
+      const rawId = text.replace(/^\/start\s*/i, '').trim();
+      const rawIdUpper = rawId.toUpperCase();
+      const numericId = !isNaN(Number(rawId)) && rawId !== '' ? Number(rawId) : null;
 
-      if (!inputId || text === '/start') {
+      if (!rawId || text.toLowerCase() === '/start') {
         const greeting = "Assalomu alaykum! Open World xabarnoma botiga xush kelibsiz. 🎓\n\nFarzandingizning davomati va baholarini kuzatib borish uchun uning Talaba ID raqamini yuboring:\n\n(Masalan: 02030)";
         await sendTelegramReply(token, chatId, greeting);
         return res.status(200).json({ ok: true });
@@ -92,11 +94,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       studentsSnapshot.forEach((docSnap) => {
         if (matchedStudent) return;
         const sData = docSnap.data();
-        const sDocId = docSnap.id.toUpperCase();
-        const sStudentId = (sData.studentId || '').toUpperCase();
-        const sCustomId = (sData.customId || '').toUpperCase();
+        const docId = docSnap.id;
+        const sStudentId = sData.studentId;
+        const sCustomId = sData.customId;
+        const sPhone = sData.phone ? String(sData.phone) : '';
 
-        if (sDocId === inputId || sStudentId === inputId || sCustomId === inputId) {
+        const matchDocId = docId.toUpperCase() === rawIdUpper;
+        const matchStudentIdStr = sStudentId !== undefined && String(sStudentId).toUpperCase() === rawIdUpper;
+        const matchStudentIdNum = numericId !== null && sStudentId === numericId;
+        const matchCustomIdStr = sCustomId !== undefined && String(sCustomId).toUpperCase() === rawIdUpper;
+        const matchCustomIdNum = numericId !== null && sCustomId === numericId;
+        const matchPhone = sPhone === rawId || (numericId !== null && sPhone === String(numericId));
+
+        if (matchDocId || matchStudentIdStr || matchStudentIdNum || matchCustomIdStr || matchCustomIdNum || matchPhone) {
           const studentName = `${sData.firstName || ''} ${sData.surname || ''}`.trim() || sData.name || "Talaba";
           const groupName = sData.groupId ? groupsMap.get(sData.groupId) || 'Biriktirilgan' : 'Biriktirilgan';
           matchedStudent = {
@@ -108,25 +118,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       if (!matchedStudent) {
-        const notFoundText = "❌ Bunday ID raqamli talaba topilmadi.\n\nIltimos, ID raqamini to'g'ri kiritganingizni tekshiring (masalan: 02030) yoki o'quv markazi ma'muriyatiga murojaat qiling.";
+        const notFoundText = `❌ Bunday ID raqamli talaba topilmadi.\n\nIltimos, ID raqamini to'g'ri kiritganingizni tekshiring (masalan: 02030) yoki o'quv markazi ma'muriyatiga murojaat qiling.`;
         await sendTelegramReply(token, chatId, notFoundText);
       } else {
         const studentDocRef = doc(db, 'students', matchedStudent.id);
+        const senderName = message.from?.first_name || '';
+        const username = message.from?.username || '';
+
         await updateDoc(studentDocRef, {
           telegramChatId: chatId.toString(),
           parentTelegramId: chatId.toString(),
-          telegramParentName: message.from?.first_name || '',
-          telegramUsername: message.from?.username || '',
+          telegramParentName: senderName,
+          telegramUsername: username,
           telegramConnectedAt: new Date().toISOString()
         });
 
-        const successText = `✅ Muvaffaqiyatli ulandi!\n\n👤 Talaba: ${matchedStudent.name}\n📚 Guruh: ${matchedStudent.groupName || 'Biriktirilgan'}\n\nEndi davomat belgilanganda (kelmadi, kechikdi) va to'lov hisobotlari avtomatik ravishda ushbu chatga yuboriladi.`;
+        const successText = `✅ <b>Muvaffaqiyatli ulandi!</b>\n\n👤 <b>Talaba:</b> ${matchedStudent.name}\n🆔 <b>ID:</b> <code>${rawId}</code>\n\nFarzandingizning davomati va dars hisobotlari avtomatik ravishda ushbu botga yuboriladi.`;
         await sendTelegramReply(token, chatId, successText);
       }
 
       return res.status(200).json({ ok: true });
-    } catch (err) {
-      console.error('Webhook error:', err);
+    } catch (error) {
+      console.error("Firestore lookup error:", error);
+      const chatId = req.body?.message?.chat?.id;
+      const token = process.env.TELEGRAM_BOT_TOKEN;
+      if (chatId && token) {
+        await sendTelegramReply(token, chatId, "⚠️ Xatolik yuz berdi. Iltimos, birozdan so'ng qayta urinib ko'ring yoki ma'muriyatga xabar bering.");
+      }
       return res.status(200).json({ ok: true });
     }
   }
