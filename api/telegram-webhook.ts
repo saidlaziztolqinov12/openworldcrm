@@ -16,7 +16,7 @@ const db = getFirestore(appFirebase);
 
 async function sendTelegramReply(token: string, chatId: number | string, text: string) {
   try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -25,8 +25,10 @@ async function sendTelegramReply(token: string, chatId: number | string, text: s
         parse_mode: 'HTML'
       })
     });
+    return res.ok;
   } catch (err) {
     console.error('Failed to send telegram reply:', err);
+    return false;
   }
 }
 
@@ -35,10 +37,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  // Verify x-telegram-bot-api-secret-token header
-  const secretToken = req.headers['x-telegram-bot-api-secret-token'];
-  if (!process.env.TELEGRAM_WEBHOOK_SECRET || secretToken !== process.env.TELEGRAM_WEBHOOK_SECRET) {
-    return res.status(403).json({ error: 'Forbidden' });
+  if (req.method === 'GET') {
+    return res.status(200).json({ status: "Telegram webhook endpoint is running" });
+  }
+
+  // Verify x-telegram-bot-api-secret-token header only if TELEGRAM_WEBHOOK_SECRET or TELEGRAM_SECRET_TOKEN is defined
+  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET || process.env.TELEGRAM_SECRET_TOKEN;
+  if (webhookSecret) {
+    const secretToken = req.headers['x-telegram-bot-api-secret-token'];
+    if (secretToken !== webhookSecret) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
   }
 
   if (req.method === 'POST') {
@@ -126,5 +135,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  return res.status(200).send('Telegram Webhook is running');
+  return res.status(200).json({ status: "Telegram webhook endpoint is running" });
 }
