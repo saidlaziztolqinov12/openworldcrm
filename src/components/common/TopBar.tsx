@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Sun, Moon, LogOut, ShieldCheck, User, BarChart2, Bell, Sparkles } from 'lucide-react';
+import { Sun, Moon, LogOut, ShieldCheck, User, BarChart2, Bell, Sparkles, GraduationCap } from 'lucide-react';
 import { LogoutConfirmModal } from './LogoutConfirmModal';
 import { UserProfileModal } from '../profile/UserProfileModal';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -90,9 +90,18 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTabTitle, onOpenTeacherAct
   return (
     <>
       <header className="h-14 w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 lg:px-8 shrink-0 z-20 transition-colors duration-200">
-        {/* Left Side: Active Section / Context */}
+        {/* Left Side: Brand Logo on Mobile, Active Tab Title on Desktop */}
         <div className="flex items-center gap-3 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex md:hidden items-center gap-2">
+            <div className="w-7 h-7 rounded-md bg-indigo-600 text-white flex items-center justify-center shadow-xs shrink-0">
+              <GraduationCap className="w-4 h-4" />
+            </div>
+            <span className="font-bold text-xs tracking-tight text-slate-900 dark:text-white">
+              Open World
+            </span>
+          </div>
+
+          <div className="hidden md:flex items-center gap-2">
             <span className="font-semibold text-xs sm:text-sm text-slate-800 dark:text-slate-100 truncate">
               {activeTabTitle || 'Open World'}
             </span>
