@@ -238,8 +238,9 @@ const MainApp: React.FC = () => {
     }
     switch (activeTab) {
       case 'admin-dashboard':
+        return 'Learning Center Management';
       case 'teacher-dashboard':
-        return 'Overview Dashboard';
+        return 'Teacher Workspace';
       case 'admin-students':
         return 'Students Directory';
       case 'payments':
