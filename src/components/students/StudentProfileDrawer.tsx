@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Student } from '../../types';
 import { useData } from '../../context/DataContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { doc, updateDoc, deleteField } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { X, Phone, Calendar, BookOpen, Clock, ShieldCheck, ChevronDown, ChevronUp, Send } from 'lucide-react';
@@ -22,6 +23,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
   onStudentUpdated
 }) => {
   const { groups, teachers, attendanceRecords, students, updateStudent } = useData();
+  const { t } = useLanguage();
 
   const [isCurrentExpanded, setIsCurrentExpanded] = useState(false);
   const [expandedPastGroups, setExpandedPastGroups] = useState<Record<string, boolean>>({});
@@ -226,7 +228,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
                 <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-1">
                   <Phone className="w-3.5 h-3.5 text-indigo-500" />
-                  Parent Phone
+                  {t('studentDrawer.parentPhone')}
                 </div>
                 <div className="text-xs font-bold font-mono text-slate-800 dark:text-slate-200">
                   {student.parentPhone}
@@ -236,7 +238,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
                 <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-1">
                   <Calendar className="w-3.5 h-3.5 text-indigo-500" />
-                  Birthdate
+                  {t('studentDrawer.birthdate')}
                 </div>
                 <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
                   {student.birthDate || 'Not specified'}
@@ -246,17 +248,17 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
                 <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-1">
                   <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
-                  Current Group
+                  {t('studentDrawer.currentGroup')}
                 </div>
                 <div className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                  {currentGroup ? currentGroup.name : 'Unassigned'}
+                  {currentGroup ? currentGroup.name : t('studentDrawer.unassigned')}
                 </div>
               </div>
 
               <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
                 <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5 mb-1">
                   <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                  Enrolled Date
+                  {t('studentDrawer.enrolledDate')}
                 </div>
                 <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
                   {student.enrolledDate}
@@ -269,7 +271,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               <div className="flex items-center gap-2">
                 <TelegramIcon className="w-4 h-4 text-sky-600 dark:text-sky-400" />
                 <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">
-                  Telegram Notifications
+                  {t('studentDrawer.telegramNotifications')}
                 </h3>
               </div>
 
@@ -284,7 +286,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-sky-100 text-sky-700 dark:bg-sky-900/80 dark:text-sky-300">
                       <TelegramIcon className="w-3.5 h-3.5" />
-                      Connected
+                      {t('studentDrawer.connected')}
                     </span>
                     <button
                       type="button"
@@ -292,40 +294,42 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                       disabled={disconnecting}
                       className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 rounded-lg text-xs font-bold border border-rose-200 dark:border-rose-800 transition-all cursor-pointer disabled:opacity-50"
                     >
-                      {disconnecting ? 'Uzilmoqda...' : 'Ulanishni uzish'}
+                      {disconnecting ? t('studentDrawer.disconnecting') : t('studentDrawer.disconnect')}
                     </button>
                   </div>
 
                   {confirmDisconnect && (
                     <div className="flex items-center gap-2 mt-2 p-2 bg-red-50 dark:bg-red-950/40 rounded-lg border border-red-200 dark:border-red-800">
-                      <p className="text-xs text-red-700 dark:text-red-400 flex-1">Rostdan ham uzmoqchimisiz?</p>
+                      <p className="text-xs text-red-700 dark:text-red-400 flex-1">
+                        {t('studentDrawer.confirmDisconnectText')}
+                      </p>
                       <button
                         type="button"
                         onClick={handleDisconnectTelegram}
                         disabled={disconnecting}
                         className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded disabled:opacity-50"
                       >
-                        Ha, uzish
+                        {t('studentDrawer.yesDisconnect')}
                       </button>
                       <button
                         type="button"
                         onClick={() => setConfirmDisconnect(false)}
                         className="px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs rounded"
                       >
-                        Bekor qilish
+                        {t('studentDrawer.cancel')}
                       </button>
                     </div>
                   )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-sky-100 dark:border-sky-900/60">
                     <div>
-                      <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Parent / User</span>
+                      <span className="text-slate-500 dark:text-slate-400 block text-[11px]">{t('studentDrawer.parentUser')}</span>
                       <span className="font-bold text-slate-800 dark:text-slate-200">
-                        {student.telegramParentName || 'Telegram foydalanuvchisi'}
+                        {student.telegramParentName || t('studentDrawer.telegramUser')}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Username</span>
+                      <span className="text-slate-500 dark:text-slate-400 block text-[11px]">{t('studentDrawer.username')}</span>
                       {student.telegramUsername ? (
                         <a
                           href={`https://t.me/${student.telegramUsername.replace(/^@/, '')}`}
@@ -340,12 +344,12 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                         </a>
                       ) : (
                         <span className="font-semibold text-slate-500 dark:text-slate-400 italic text-[11px]">
-                          Username mavjud emas
+                          {t('studentDrawer.noUsername')}
                         </span>
                       )}
                     </div>
                     <div className="sm:col-span-2">
-                      <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Linked Date</span>
+                      <span className="text-slate-500 dark:text-slate-400 block text-[11px]">{t('studentDrawer.linkedDate')}</span>
                       <span className="font-bold text-slate-800 dark:text-slate-200">
                         {student.telegramConnectedAt ? new Date(student.telegramConnectedAt).toLocaleString() : '—'}
                       </span>
@@ -356,10 +360,12 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                 <div className="p-4 bg-amber-50/70 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800/80 space-y-2.5 text-xs">
                   <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-bold">
                     <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                    Ota-ona Telegram botga ulanmagan
+                    {t('studentDrawer.notConnectedTitle')}
                   </div>
                   <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Ota-ona botga ulanmagan. Ulash uchun botga ushbu ID ni yuboring: <strong className="font-mono text-slate-900 dark:text-white bg-amber-100/80 dark:bg-amber-900/50 px-1.5 py-0.5 rounded">{displayStudentId}</strong>
+                    {t('studentDrawer.notConnectedDesc', { id: displayStudentId }).split(displayStudentId)[0]}
+                    <strong className="font-mono text-slate-900 dark:text-white bg-amber-100/80 dark:bg-amber-900/50 px-1.5 py-0.5 rounded">{displayStudentId}</strong>
+                    {t('studentDrawer.notConnectedDesc', { id: displayStudentId }).split(displayStudentId)[1] || ''}
                   </p>
                 </div>
               )}

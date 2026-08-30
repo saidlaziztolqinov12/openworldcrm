@@ -348,6 +348,27 @@ export const en = {
     successToast: "Backup files (.json and .doc) downloaded successfully",
     loading: "Generating Backup..."
   },
+  studentDrawer: {
+    parentPhone: "Parent Phone",
+    birthdate: "Birthdate",
+    currentGroup: "Current Group",
+    unassigned: "Unassigned",
+    enrolledDate: "Enrolled Date",
+    telegramNotifications: "Telegram Notifications",
+    connected: "Connected",
+    disconnect: "Disconnect",
+    disconnecting: "Disconnecting...",
+    confirmDisconnectText: "Are you sure you want to disconnect?",
+    yesDisconnect: "Yes, disconnect",
+    cancel: "Cancel",
+    parentUser: "Parent / User",
+    username: "Username",
+    noUsername: "No username",
+    linkedDate: "Linked Date",
+    telegramUser: "Telegram User",
+    notConnectedTitle: "Parent is not connected to Telegram bot",
+    notConnectedDesc: "Parent is not connected to the bot. Send this ID to the bot to connect: {{id}}"
+  },
   adminDashboard: {
     hub: "Center Director Hub • Global Administration",
     title: "Learning Center Management",

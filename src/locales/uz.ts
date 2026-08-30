@@ -348,6 +348,27 @@ export const uz = {
     successToast: "Zaxira fayllari (.json va .doc) muvaffaqiyatli yuklab olindi",
     loading: "Zaxira yaratilmoqda..."
   },
+  studentDrawer: {
+    parentPhone: "Ota-ona telefoni",
+    birthdate: "Tug'ilgan sana",
+    currentGroup: "Hozirgi guruh",
+    unassigned: "Biriktirilmagan",
+    enrolledDate: "Qo'shilgan sana",
+    telegramNotifications: "Telegram xabarnomalari",
+    connected: "Ulangan",
+    disconnect: "Ulanishni uzish",
+    disconnecting: "Uzilmoqda...",
+    confirmDisconnectText: "Rostdan ham uzmoqchimisiz?",
+    yesDisconnect: "Ha, uzish",
+    cancel: "Bekor qilish",
+    parentUser: "Ota-ona / Foydalanuvchi",
+    username: "Foydalanuvchi nomi",
+    noUsername: "Username mavjud emas",
+    linkedDate: "Ulangan sana",
+    telegramUser: "Telegram foydalanuvchisi",
+    notConnectedTitle: "Ota-ona Telegram botga ulanmagan",
+    notConnectedDesc: "Ota-ona botga ulanmagan. Ulash uchun botga ushbu ID ni yuboring: {{id}}"
+  },
   adminDashboard: {
     hub: "Markaz Direktori Hub • Global Boshqaruv",
     title: "O'quv Markazi Boshqaruvi",
