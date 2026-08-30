@@ -53,11 +53,11 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
       });
 
       await updateStudent(docId, {
-        telegramChatId: undefined,
-        parentTelegramId: undefined,
-        telegramParentName: undefined,
-        telegramUsername: undefined,
-        telegramConnectedAt: undefined
+        telegramChatId: null as any,
+        parentTelegramId: null as any,
+        telegramParentName: null as any,
+        telegramUsername: null as any,
+        telegramConnectedAt: null as any
       });
 
       const updatedStudent: Student = {
@@ -284,7 +284,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-sky-100 text-sky-700 dark:bg-sky-900/80 dark:text-sky-300">
                       <TelegramIcon className="w-3.5 h-3.5" />
-                      Telegram Faol / Connected
+                      Connected
                     </span>
                     <button
                       type="button"
@@ -321,14 +321,28 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                     <div>
                       <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Parent / User</span>
                       <span className="font-bold text-slate-800 dark:text-slate-200">
-                        {student.telegramParentName || 'Mavjud emas'}
+                        {student.telegramParentName || 'Telegram foydalanuvchisi'}
                       </span>
                     </div>
                     <div>
                       <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Username</span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
-                        @{student.telegramUsername || "Noma'lum"}
-                      </span>
+                      {student.telegramUsername ? (
+                        <a
+                          href={`https://t.me/${student.telegramUsername.replace(/^@/, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-bold text-sky-600 dark:text-sky-400 font-mono hover:underline inline-flex items-center gap-1"
+                        >
+                          @{student.telegramUsername.replace(/^@/, '')}
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </a>
+                      ) : (
+                        <span className="font-semibold text-slate-500 dark:text-slate-400 italic text-[11px]">
+                          Username mavjud emas
+                        </span>
+                      )}
                     </div>
                     <div className="sm:col-span-2">
                       <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Linked Date</span>

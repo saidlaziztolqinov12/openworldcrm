@@ -378,7 +378,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
               </div>
               <div className="flex items-center gap-1.5">
                 <Users className="w-4 h-4 text-slate-400" />
-                <span><strong className="text-slate-800 dark:text-slate-200">{groupStudents.length}</strong> {t('groupDetail.enrolledStudents', { count: groupStudents.length })}</span>
+                <span>{t('groupDetail.enrolledStudents', { count: groupStudents.length })}</span>
               </div>
             </div>
           </div>
@@ -792,18 +792,31 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                     className="bg-white dark:bg-slate-900 rounded-md border-none p-5 shadow-xs hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col justify-between"
                   >
                     <div className="space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="font-bold text-slate-900 dark:text-white text-base">
-                            {student.firstName} {student.surname}
-                          </h4>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {t('groupDetail.rosterTab.enrolledDate', { date: student.enrolledDate || 'Active' })}
-                          </p>
-                        </div>
+                      {/* Telegram Status Badge placed above student name */}
+                      <div className="flex items-center justify-between">
+                        {student.telegramChatId || student.parentTelegramId ? (
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/60">
+                            <TelegramIcon className="w-3 h-3" />
+                            <span>Connected</span>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60">
+                            <TelegramIcon className="w-3 h-3 opacity-70" />
+                            <span>Not Connected</span>
+                          </div>
+                        )}
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 uppercase tracking-wider">
                           {student.status || 'Active'}
                         </span>
+                      </div>
+
+                      <div>
+                        <h4 className="font-bold text-slate-900 dark:text-white text-base">
+                          {student.firstName} {student.surname}
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {t('groupDetail.rosterTab.enrolledDate', { date: student.enrolledDate || 'Active' })}
+                        </p>
                       </div>
 
                       {/* Permanent student static info */}
@@ -837,21 +850,6 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                           {student.notes}
                         </p>
                       )}
-
-                      {/* Telegram Status Badge */}
-                      <div className="pt-1">
-                        {student.telegramChatId || student.parentTelegramId ? (
-                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400 border border-sky-200 dark:border-sky-800 shadow-sm">
-                            <TelegramIcon className="w-3.5 h-3.5" />
-                            <span>Connected</span>
-                          </div>
-                        ) : (
-                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800 shadow-sm">
-                            <TelegramIcon className="w-3.5 h-3.5 opacity-70" />
-                            <span>Not Connected</span>
-                          </div>
-                        )}
-                      </div>
                     </div>
 
                     {/* Actions */}

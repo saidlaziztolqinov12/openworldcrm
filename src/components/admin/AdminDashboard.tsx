@@ -421,7 +421,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
                       <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                         <Users className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-                        <span><strong>{groupStudentsList.length}</strong> {t('adminDashboard.enrolledStudents', { count: groupStudentsList.length })}</span>
+                        <span>{t('adminDashboard.enrolledStudents', { count: groupStudentsList.length })}</span>
                       </div>
                     </div>
 
