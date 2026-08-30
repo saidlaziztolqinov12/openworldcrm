@@ -1,18 +1,26 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyClabMv0UKAy6FIak8RCqbneRsjkVmQrxk",
-  authDomain: "open-world-platform.firebaseapp.com",
-  projectId: "open-world-platform",
-  storageBucket: "open-world-platform.firebasestorage.app",
-  messagingSenderId: "619360434283",
-  appId: "1:619360434283:web:df5c43f0104efff7e1192e"
-};
-
-const appFirebase = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const db = getFirestore(appFirebase);
+if (!getApps().length) {
+  const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!rawKey) {
+    console.error("FIREBASE_SERVICE_ACCOUNT_KEY is missing in environment variables!");
+  } else {
+    try {
+      const serviceAccount = JSON.parse(rawKey);
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+      initializeApp({
+        credential: cert(serviceAccount),
+      });
+    } catch (err) {
+      console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:", err);
+    }
+  }
+}
+const db = getFirestore();
 
 async function sendTelegramReply(token: string, chatId: number | string, text: string) {
   try {
@@ -79,9 +87,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ ok: true });
       }
 
-      // Fetch students and groups from Firestore
-      const studentsSnapshot = await getDocs(collection(db, 'students'));
-      const groupsSnapshot = await getDocs(collection(db, 'groups'));
+      // Fetch students and groups from Firestore using Admin SDK
+      const studentsSnapshot = await db.collection('students').get();
+      const groupsSnapshot = await db.collection('groups').get();
 
       const groupsMap = new Map<string, string>();
       groupsSnapshot.forEach((docSnap) => {
@@ -121,11 +129,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const notFoundText = `❌ Bunday ID raqamli talaba topilmadi.\n\nIltimos, ID raqamini to'g'ri kiritganingizni tekshiring (masalan: 02030) yoki o'quv markazi ma'muriyatiga murojaat qiling.`;
         await sendTelegramReply(token, chatId, notFoundText);
       } else {
-        const studentDocRef = doc(db, 'students', matchedStudent.id);
         const senderName = message.from?.first_name || '';
         const username = message.from?.username || '';
 
-        await updateDoc(studentDocRef, {
+        await db.collection('students').doc(matchedStudent.id).update({
           telegramChatId: chatId.toString(),
           parentTelegramId: chatId.toString(),
           telegramParentName: senderName,
