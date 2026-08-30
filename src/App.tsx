@@ -28,6 +28,7 @@ import { TeacherStudentsDirectory } from './components/teacher/TeacherStudentsDi
 import { GroupDetailView } from './components/groups/GroupDetailView';
 import { StudentModal } from './components/students/StudentModal';
 import { InboxView } from './components/notifications/InboxView';
+import { ArchiveView } from './components/admin/ArchiveView';
 
 const MainApp: React.FC = () => {
   const { currentUser, isAdmin, isTeacher, isSuperAdmin, isLoading } = useAuth();
@@ -57,7 +58,7 @@ const MainApp: React.FC = () => {
       setToastWarning('Access restricted to Super Admin only.');
       setTimeout(() => setToastWarning(null), 3500);
     }
-    if (isAdmin && !['admin-dashboard', 'admin-students', 'payments', 'teachers', 'all-admins', 'salary-advances', 'analytics', 'inbox'].includes(activeTab)) {
+    if (isAdmin && !['admin-dashboard', 'admin-students', 'payments', 'teachers', 'all-admins', 'salary-advances', 'analytics', 'inbox', 'archive'].includes(activeTab)) {
       setActiveTab('admin-dashboard');
     } else if (isTeacher && !['teacher-dashboard', 'teacher-students', 'teacher-attendance-history', 'inbox'].includes(activeTab)) {
       setActiveTab('teacher-dashboard');
@@ -337,6 +338,9 @@ const MainApp: React.FC = () => {
                   )}
                   {activeTab === 'analytics' && (
                     <GlobalAnalytics onSelectGroup={handleSelectGroup} />
+                  )}
+                  {activeTab === 'archive' && (
+                    <ArchiveView />
                   )}
                   {activeTab === 'inbox' && (
                     <InboxView onSelectGroup={handleSelectGroup} />

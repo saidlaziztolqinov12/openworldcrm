@@ -34,7 +34,8 @@ export const en = {
     settings: "Settings",
     logout: "Log Out",
     analytics: "Analytics",
-    allAdmins: "All Admins"
+    allAdmins: "All Admins",
+    archive: "Archive"
   },
   roles: {
     super_admin: "Super Admin",
@@ -408,5 +409,30 @@ export const en = {
     deleteWarning: "Enrolled students will be automatically unassigned and marked as ready for new group placement.",
     deleting: "Deleting...",
     adminCreated: "Admin account created successfully."
+  },
+  archiveView: {
+    archive_title: "System Archive & Audit Trail",
+    filter_all: "All",
+    filter_students: "Students",
+    filter_groups: "Groups",
+    filter_staff: "Staff",
+    filter_telegram: "Telegram",
+    label_student: "Student",
+    label_group: "Group",
+    label_teacher: "Teacher",
+    label_performed_by: "Performed by",
+    label_time: "Time",
+    empty_logs: "No system activity recorded yet.",
+    load_more: "Load more",
+    actions: {
+      student_added: "New student added to database",
+      student_assigned: "Student assigned to group",
+      student_removed: "Student removed from group",
+      group_created: "New group created",
+      group_updated: "Group details updated",
+      staff_added: "New staff member registered",
+      telegram_connected: "Telegram notification connected",
+      telegram_disconnected: "Telegram connection removed"
+    }
   }
 };

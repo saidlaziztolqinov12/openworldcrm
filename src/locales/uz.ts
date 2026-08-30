@@ -34,7 +34,8 @@ export const uz = {
     settings: "Sozlamalar",
     logout: "Chiqish",
     analytics: "Analitika",
-    allAdmins: "Barcha adminlar"
+    allAdmins: "Barcha adminlar",
+    archive: "Arxiv"
   },
   roles: {
     super_admin: "Super Admin",
@@ -408,5 +409,30 @@ export const uz = {
     deleteWarning: "Biriktirilgan o'quvchilar avtomatik ravishda bo'shatiladi va yangi guruhga tayyor deb belgilanadi.",
     deleting: "O'chirilmoqda...",
     adminCreated: "Admin hisobi muvaffaqiyatli yaratildi."
+  },
+  archiveView: {
+    archive_title: "Tizim Arxivi va Tarix",
+    filter_all: "Barchasi",
+    filter_students: "Talabalar",
+    filter_groups: "Guruhlar",
+    filter_staff: "Xodimlar",
+    filter_telegram: "Telegram",
+    label_student: "Talaba",
+    label_group: "Guruh",
+    label_teacher: "O'qituvchi",
+    label_performed_by: "Bajaruvchi",
+    label_time: "Vaqt",
+    empty_logs: "Hozircha hech qanday tizim harakati yozilmagan.",
+    load_more: "Ko'proq yuklash",
+    actions: {
+      student_added: "Yangi talaba bazaga qo'shildi",
+      student_assigned: "Talaba yangi guruhga biriktirildi",
+      student_removed: "Talaba guruhdan chiqarildi",
+      group_created: "Yangi guruh ochildi",
+      group_updated: "Guruh ma'lumotlari yangilandi",
+      staff_added: "Yangi xodim qo'shildi",
+      telegram_connected: "Telegram xabarnoma ulandi",
+      telegram_disconnected: "Telegram ulanishi uzildi"
+    }
   }
 };

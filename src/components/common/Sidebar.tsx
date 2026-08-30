@@ -16,7 +16,8 @@ import {
   Inbox,
   Wallet,
   ShieldCheck,
-  CreditCard
+  CreditCard,
+  Archive
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -118,6 +119,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: 'analytics',
           label: t('sidebar.analytics'),
           icon: BarChart3
+        },
+        {
+          id: 'archive',
+          label: t('sidebar.archive'),
+          icon: Archive
         },
         {
           id: 'inbox',
