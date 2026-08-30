@@ -4,6 +4,7 @@ import { useData } from '../../context/DataContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { Group } from '../../types';
 import { GroupModal } from '../groups/GroupModal';
+import { EditGroupModal } from '../groups/EditGroupModal';
 import { CohortAnalyticsChart } from './CohortAnalyticsChart';
 import {
   BookOpen,
@@ -14,7 +15,8 @@ import {
   ChevronRight,
   Sparkles,
   BarChart2,
-  Calendar
+  Calendar,
+  Edit2
 } from 'lucide-react';
 
 interface TeacherDashboardProps {
@@ -30,6 +32,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const { groups, students, attendanceRecords } = useData();
   const { language, t } = useLanguage();
   const [isNewGroupModalOpen, setIsNewGroupModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [groupToEdit, setGroupToEdit] = useState<Group | null>(null);
+
+  const handleEditClick = (group: Group) => {
+    setGroupToEdit(group);
+    setIsEditModalOpen(true);
+  };
 
   // Helper to format schedule days based on current language
   const formatSchedule = (schedule: string): string => {
@@ -163,13 +172,28 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   <div className="space-y-4">
                     {/* Header */}
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="font-extrabold text-slate-900 dark:text-white text-base leading-snug">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-extrabold text-slate-900 dark:text-white text-base leading-snug truncate">
                           {group.name}
                         </h3>
                       </div>
-                      <div className="w-9 h-9 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                        <BookOpen className="w-4 h-4" />
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          id={`edit-group-btn-${group.id}`}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(group);
+                          }}
+                          className="p-1.5 rounded-md text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors cursor-pointer"
+                          title={t('groups.editGroup') || 'Edit Group'}
+                          aria-label="Edit group"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <div className="w-9 h-9 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                          <BookOpen className="w-4 h-4" />
+                        </div>
                       </div>
                     </div>
 
@@ -218,6 +242,18 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           onSelectGroup(groupId);
         }}
       />
+
+      {/* Edit Group Modal */}
+      {isEditModalOpen && groupToEdit && (
+        <EditGroupModal
+          group={groupToEdit}
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setGroupToEdit(null);
+          }}
+        />
+      )}
     </div>
   );
 };
