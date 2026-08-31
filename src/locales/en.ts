@@ -376,7 +376,7 @@ export const en = {
     salaryAdvances: "Advances",
     addAdmin: "Add Admin",
     addTeacher: "Add Teacher",
-    createGroup: "+ Group",
+    createGroup: "Create Group",
     activeStudents: "Active Students",
     enrolledAcross: "Enrolled across all groups",
     viewAll: "View All →",

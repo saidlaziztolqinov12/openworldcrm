@@ -16,6 +16,7 @@ import {
   Plus,
   Clock,
   UserCheck,
+  UserPlus,
   Search,
   Edit2,
   Archive,
@@ -155,33 +156,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 relative z-10">
-          {isSuperAdmin && (
-            <button
-              onClick={onNavigateSalaryAdvances}
-              className="px-3.5 py-2.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
-              title="Manage Teacher Salary Advances"
-            >
-              <Wallet className="w-4 h-4 text-indigo-400" />
-              <span>{t('adminDashboard.salaryAdvances')}</span>
-            </button>
-          )}
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 w-full sm:w-auto md:min-w-[340px] relative z-10">
+          <button
+            onClick={onNavigateSalaryAdvances}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-md font-medium text-xs sm:text-sm transition-all shadow-sm bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 hover:border-slate-600 cursor-pointer"
+            title="Manage Teacher Salary Advances"
+          >
+            <Wallet className="w-4 h-4 text-indigo-400 shrink-0" />
+            <span className="truncate">{t('adminDashboard.salaryAdvances')}</span>
+          </button>
 
-          {isSuperAdmin && (
-            <button
-              onClick={() => setIsAddAdminModalOpen(true)}
-              className="px-3.5 py-2.5 rounded-md bg-purple-900/60 hover:bg-purple-900 text-purple-100 text-xs font-bold border border-purple-700/60 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
-            >
-              <Plus className="w-4 h-4 text-purple-300" />
-              <span>{t('adminDashboard.addAdmin')}</span>
-            </button>
-          )}
+          <button
+            onClick={() => setIsAddAdminModalOpen(true)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-md font-medium text-xs sm:text-sm transition-all shadow-sm bg-purple-900/60 hover:bg-purple-900/90 text-purple-100 border border-purple-700/60 hover:border-purple-500 cursor-pointer"
+          >
+            <ShieldCheck className="w-4 h-4 text-purple-300 shrink-0" />
+            <span className="truncate">{t('adminDashboard.addAdmin')}</span>
+          </button>
 
           <button
             onClick={() => setIsTeacherModalOpen(true)}
-            className="px-4 py-2.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-bold border border-slate-700 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-md font-medium text-xs sm:text-sm transition-all shadow-sm bg-slate-800/90 hover:bg-slate-700 text-slate-100 border border-slate-700/80 hover:border-slate-600 cursor-pointer"
           >
-            <span>{t('adminDashboard.addTeacher')}</span>
+            <UserPlus className="w-4 h-4 text-indigo-400 shrink-0" />
+            <span className="truncate">{t('adminDashboard.addTeacher')}</span>
           </button>
 
           <button
@@ -189,9 +187,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               setGroupToEdit(null);
               setIsNewGroupModalOpen(true);
             }}
-            className="px-5 py-2.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition-all flex items-center gap-2 cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-md font-medium text-xs sm:text-sm transition-all shadow-sm bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500/80 shadow-indigo-600/30 cursor-pointer"
           >
-            <span>{t('adminDashboard.createGroup')}</span>
+            <Plus className="w-4 h-4 text-white shrink-0" />
+            <span className="truncate">{t('adminDashboard.createGroup')}</span>
           </button>
         </div>
       </div>
