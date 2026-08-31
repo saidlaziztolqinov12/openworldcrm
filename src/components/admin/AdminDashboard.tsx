@@ -181,7 +181,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             onClick={() => setIsTeacherModalOpen(true)}
             className="px-4 py-2.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-bold border border-slate-700 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
           >
-            <Plus className="w-4 h-4 text-indigo-400" />
             <span>{t('adminDashboard.addTeacher')}</span>
           </button>
 
@@ -192,7 +191,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }}
             className="px-5 py-2.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition-all flex items-center gap-2 cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
             <span>{t('adminDashboard.createGroup')}</span>
           </button>
         </div>
