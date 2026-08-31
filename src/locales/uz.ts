@@ -373,7 +373,6 @@ export const uz = {
   adminDashboard: {
     hub: "Markaz Direktori Hub • Global Boshqaruv",
     title: "O'quv Markazi Boshqaruvi",
-    subtitle: "Markaz bo'ylab natijalarni kuzatib boring, o'qituvchilarni qayta tayinlang, o'quvchilar ro'yxatini boshqaring va davomatni real vaqt rejimida tekshiring.",
     salaryAdvances: "Oylik Avanslar",
     addAdmin: "Admin Qo'shish",
     addTeacher: "O'qituvchi Qo'shish",

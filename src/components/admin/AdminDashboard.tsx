@@ -153,9 +153,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
             {t('adminDashboard.title')}
           </h1>
-          <p className="text-sm text-slate-300 max-w-2xl">
-            {t('adminDashboard.subtitle')}
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 relative z-10">

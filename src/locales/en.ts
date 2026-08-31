@@ -373,7 +373,6 @@ export const en = {
   adminDashboard: {
     hub: "Center Director Hub • Global Administration",
     title: "Learning Center Management",
-    subtitle: "Monitor center-wide performance, reassign instructors, manage student rosters, and inspect attendance in real time.",
     salaryAdvances: "Salary Advances",
     addAdmin: "Add Admin",
     addTeacher: "Add Teacher",
