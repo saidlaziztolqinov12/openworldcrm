@@ -3,6 +3,7 @@ import { Group, User } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { getAvailableInstructors } from '../../lib/teacherUtils';
 import { X, BookOpen, Clock, UserCheck } from 'lucide-react';
 
 interface GroupModalProps {
@@ -32,45 +33,9 @@ export const GroupModal: React.FC<GroupModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Fetch or list available teachers: include role 'teacher' and role 'super_admin' (or current superadmin profile)
+  // Deduplicated available teachers with STRICTLY ONE super admin option
   const availableTeachers = useMemo(() => {
-    const list: User[] = [];
-    const seenIds = new Set<string>();
-
-    // 1. Users whose role is 'teacher'
-    users.forEach((u) => {
-      if (u.role === 'teacher' && !seenIds.has(u.id)) {
-        seenIds.add(u.id);
-        list.push(u);
-      }
-    });
-
-    // 2. Users whose role is 'super_admin' / 'superadmin'
-    users.forEach((u) => {
-      const isSuper = u.role === 'super_admin' || (u.role as any) === 'superadmin' || u.id === 'admin-1';
-      if (isSuper && !seenIds.has(u.id)) {
-        seenIds.add(u.id);
-        list.push(u);
-      }
-    });
-
-    // 3. Current user if superadmin
-    if (currentUser && (currentUser.role === 'super_admin' || (currentUser.role as any) === 'superadmin' || isSuperAdmin || currentUser.id === 'admin-1')) {
-      if (!seenIds.has(currentUser.id)) {
-        seenIds.add(currentUser.id);
-        list.push(currentUser);
-      }
-    }
-
-    // 4. Fallback items from teachers list
-    teachers.forEach((t) => {
-      if (!seenIds.has(t.id)) {
-        seenIds.add(t.id);
-        list.push(t);
-      }
-    });
-
-    return list;
+    return getAvailableInstructors(users, teachers, currentUser, isSuperAdmin);
   }, [users, teachers, currentUser, isSuperAdmin]);
 
   useEffect(() => {
@@ -79,19 +44,38 @@ export const GroupModal: React.FC<GroupModalProps> = ({
     if (activeGroup) {
       setName(activeGroup.name || '');
       setSchedule(activeGroup.schedule || '');
-      setTeacherId(activeGroup.teacherId || '');
+
+      // Match instructor ID, taking into account superadmin aliases
+      const superAdminInstructor = availableTeachers.find(
+        (t) => t.role === 'super_admin' || (t.role as any) === 'superadmin' || t.id === 'admin-1'
+      );
+      const isSuperAdminMatch =
+        activeGroup.teacherId === 'admin-1' ||
+        activeGroup.teacherId === currentUser?.id ||
+        (currentUser?.uid && activeGroup.teacherId === currentUser.uid);
+
+      if (availableTeachers.some((t) => t.id === activeGroup.teacherId)) {
+        setTeacherId(activeGroup.teacherId);
+      } else if (isSuperAdminMatch && superAdminInstructor) {
+        setTeacherId(superAdminInstructor.id);
+      } else {
+        setTeacherId(activeGroup.teacherId || availableTeachers[0]?.id || '');
+      }
     } else {
       setName('');
       setSchedule('Mon/Wed/Fri 10:00 AM - 11:30 AM');
       if (isAdmin) {
-        // Default to current user if superadmin or first available instructor
-        setTeacherId(availableTeachers[0]?.id || teachers[0]?.id || '');
+        // Default to current user if superadmin, or first available instructor
+        const currentAsTeacher = availableTeachers.find(
+          (t) => t.id === currentUser?.id || (currentUser?.uid && t.id === currentUser.uid)
+        );
+        setTeacherId(currentAsTeacher?.id || availableTeachers[0]?.id || '');
       } else {
         setTeacherId(currentUser?.id || availableTeachers[0]?.id || '');
       }
     }
     setError('');
-  }, [isOpen, activeGroup, isAdmin, currentUser?.id, availableTeachers, teachers]);
+  }, [isOpen, activeGroup, isAdmin, currentUser, availableTeachers]);
 
   if (!isOpen) return null;
 

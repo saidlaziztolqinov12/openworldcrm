@@ -8,6 +8,7 @@ import { TeacherModal } from './TeacherModal';
 import { AdminModal } from './AdminModal';
 import { AnimatedCounter } from '../common/AnimatedCounter';
 import { getLocalMonth } from '../../lib/dateUtils';
+import { getAvailableInstructors } from '../../lib/teacherUtils';
 import {
   GraduationCap,
   Users,
@@ -94,41 +95,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
   const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
 
-  // Available teachers: teachers + superadmins (with teaching capability)
+  // Available teachers: teachers + strictly ONE superadmin (with teaching capability)
   const availableTeachers = useMemo(() => {
-    const list: User[] = [];
-    const seenIds = new Set<string>();
-
-    users.forEach((u) => {
-      if (u.role === 'teacher' && !seenIds.has(u.id)) {
-        seenIds.add(u.id);
-        list.push(u);
-      }
-    });
-
-    users.forEach((u) => {
-      const isSuper = u.role === 'super_admin' || (u.role as any) === 'superadmin' || u.id === 'admin-1';
-      if (isSuper && !seenIds.has(u.id)) {
-        seenIds.add(u.id);
-        list.push(u);
-      }
-    });
-
-    if (currentUser && (currentUser.role === 'super_admin' || (currentUser.role as any) === 'superadmin' || isSuperAdmin || currentUser.id === 'admin-1')) {
-      if (!seenIds.has(currentUser.id)) {
-        seenIds.add(currentUser.id);
-        list.push(currentUser);
-      }
-    }
-
-    teachers.forEach((t) => {
-      if (!seenIds.has(t.id)) {
-        seenIds.add(t.id);
-        list.push(t);
-      }
-    });
-
-    return list;
+    return getAvailableInstructors(users, teachers, currentUser, isSuperAdmin);
   }, [users, teachers, currentUser, isSuperAdmin]);
 
   // Center-wide KPI computations
@@ -141,7 +110,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Groups taught by current admin
   const myTeachingGroupsCount = groups.filter(
-    (g) => (g.teacherId === currentUser?.id || (currentUser?.uid && g.teacherId === currentUser.uid)) && !g.archived
+    (g) =>
+      (g.teacherId === currentUser?.id ||
+        (currentUser?.uid && g.teacherId === currentUser.uid) ||
+        g.teacherId === 'admin-1') &&
+      !g.archived
   ).length;
 
   // Filter groups
@@ -149,8 +122,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     .filter((g) => (showArchived ? true : !g.archived))
     .filter((g) => {
       if (selectedTeacherFilter === 'all') return true;
-      if (currentUser && selectedTeacherFilter === currentUser.id) {
-        return g.teacherId === currentUser.id || (currentUser.uid && g.teacherId === currentUser.uid);
+
+      const isSuperAdminFilter =
+        selectedTeacherFilter === currentUser?.id ||
+        (currentUser?.uid && selectedTeacherFilter === currentUser.uid) ||
+        selectedTeacherFilter === 'admin-1' ||
+        availableTeachers.some(
+          (t) =>
+            t.id === selectedTeacherFilter &&
+            (t.role === 'super_admin' || (t.role as any) === 'superadmin')
+        );
+
+      if (isSuperAdminFilter) {
+        return (
+          g.teacherId === selectedTeacherFilter ||
+          g.teacherId === currentUser?.id ||
+          (currentUser?.uid && g.teacherId === currentUser.uid) ||
+          g.teacherId === 'admin-1'
+        );
       }
       return g.teacherId === selectedTeacherFilter;
     })
@@ -505,7 +494,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         {t('adminDashboard.assignedTeacher')}
                       </label>
                       <select
-                        value={group.teacherId}
+                        value={
+                          availableTeachers.some((t) => t.id === group.teacherId)
+                            ? group.teacherId
+                            : (group.teacherId === 'admin-1' ||
+                               group.teacherId === currentUser?.id ||
+                               (currentUser?.uid && group.teacherId === currentUser.uid))
+                            ? (availableTeachers.find(
+                                (t) =>
+                                  t.role === 'super_admin' ||
+                                  (t.role as any) === 'superadmin' ||
+                                  t.id === 'admin-1'
+                              )?.id || group.teacherId)
+                            : group.teacherId
+                        }
                         onChange={(e) => handleTeacherReassignChange(group.id, e.target.value)}
                         className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                       >
