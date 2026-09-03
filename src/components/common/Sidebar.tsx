@@ -74,6 +74,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [visibleNotifications]);
 
   // Main navigation items with "Enroll Student" removed
+  const myTeachingGroupsCount = groups.filter(
+    (g) => (g.teacherId === currentUser?.id || (currentUser?.uid && g.teacherId === currentUser.uid)) && !g.archived
+  ).length;
+
   const navItems = isAdmin
     ? [
         {
@@ -115,6 +119,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }
             ]
           : []),
+        ...(myTeachingGroupsCount > 0
+          ? [
+              {
+                id: 'teacher-attendance-history',
+                label: t('sidebar.attendance'),
+                icon: CalendarCheck2,
+                badge: myTeachingGroupsCount.toString()
+              }
+            ]
+          : []),
         {
           id: 'analytics',
           label: t('sidebar.analytics'),
@@ -137,7 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           id: 'teacher-dashboard',
           label: t('sidebar.dashboard'),
           icon: BookOpen,
-          badge: groups.filter((g) => g.teacherId === currentUser?.id && !g.archived).length.toString()
+          badge: myTeachingGroupsCount.toString()
         },
         {
           id: 'teacher-students',
@@ -145,7 +159,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           icon: GraduationCap,
           badge: students.filter((s) => {
             const myGroupIds = new Set(
-              groups.filter((g) => g.teacherId === currentUser?.id).map((g) => g.id)
+              groups.filter((g) => (g.teacherId === currentUser?.id || (currentUser?.uid && g.teacherId === currentUser.uid))).map((g) => g.id)
             );
             return myGroupIds.has(s.groupId) && s.status !== 'inactive';
           }).length.toString()

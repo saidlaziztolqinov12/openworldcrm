@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -44,6 +44,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const {
     groups,
+    users,
     teachers,
     students,
     attendanceRecords,
@@ -51,8 +52,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     deleteGroup,
     reassignTeacher
   } = useData();
-  const { isSuperAdmin } = useAuth();
-  const { t } = useLanguage();
+  const { currentUser, isSuperAdmin } = useAuth();
+  const { t, language } = useLanguage();
 
   const formatSchedule = (schedule: string): string => {
     if (!schedule) return '';
@@ -93,6 +94,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
   const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
 
+  // Available teachers: teachers + superadmins (with teaching capability)
+  const availableTeachers = useMemo(() => {
+    const list: User[] = [];
+    const seenIds = new Set<string>();
+
+    users.forEach((u) => {
+      if (u.role === 'teacher' && !seenIds.has(u.id)) {
+        seenIds.add(u.id);
+        list.push(u);
+      }
+    });
+
+    users.forEach((u) => {
+      const isSuper = u.role === 'super_admin' || (u.role as any) === 'superadmin' || u.id === 'admin-1';
+      if (isSuper && !seenIds.has(u.id)) {
+        seenIds.add(u.id);
+        list.push(u);
+      }
+    });
+
+    if (currentUser && (currentUser.role === 'super_admin' || (currentUser.role as any) === 'superadmin' || isSuperAdmin || currentUser.id === 'admin-1')) {
+      if (!seenIds.has(currentUser.id)) {
+        seenIds.add(currentUser.id);
+        list.push(currentUser);
+      }
+    }
+
+    teachers.forEach((t) => {
+      if (!seenIds.has(t.id)) {
+        seenIds.add(t.id);
+        list.push(t);
+      }
+    });
+
+    return list;
+  }, [users, teachers, currentUser, isSuperAdmin]);
+
   // Center-wide KPI computations
   const activeGroups = groups.filter((g) => !g.archived);
   const totalActiveStudents = students.filter((s) => s.status !== 'inactive').length;
@@ -101,10 +139,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const monthRecords = attendanceRecords.filter((r) => r.date.startsWith(currentMonthStr));
   const totalLessonsConductedThisMonth = monthRecords.length;
 
+  // Groups taught by current admin
+  const myTeachingGroupsCount = groups.filter(
+    (g) => (g.teacherId === currentUser?.id || (currentUser?.uid && g.teacherId === currentUser.uid)) && !g.archived
+  ).length;
+
   // Filter groups
   const filteredGroups = groups
     .filter((g) => (showArchived ? true : !g.archived))
-    .filter((g) => (selectedTeacherFilter === 'all' ? true : g.teacherId === selectedTeacherFilter))
+    .filter((g) => {
+      if (selectedTeacherFilter === 'all') return true;
+      if (currentUser && selectedTeacherFilter === currentUser.id) {
+        return g.teacherId === currentUser.id || (currentUser.uid && g.teacherId === currentUser.uid);
+      }
+      return g.teacherId === selectedTeacherFilter;
+    })
     .filter((g) => {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
@@ -116,7 +165,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     });
 
   const handleTeacherReassignChange = async (groupId: string, newTeacherId: string) => {
-    const t = teachers.find((tech) => tech.id === newTeacherId);
+    const t = availableTeachers.find((tech) => tech.id === newTeacherId) || users.find((u) => u.id === newTeacherId) || teachers.find((tech) => tech.id === newTeacherId);
     if (t) {
       await reassignTeacher(groupId, t.id, t.name);
     }
@@ -168,7 +217,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           <button
             onClick={() => setIsAddAdminModalOpen(true)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-md font-medium text-xs sm:text-sm transition-all shadow-sm bg-purple-900/60 hover:bg-purple-900/90 text-purple-100 border border-purple-700/60 hover:border-purple-500 cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-md font-medium text-xs sm:text-sm transition-all shadow-sm bg-purple-950 hover:bg-purple-900 text-purple-100 border border-purple-700 hover:border-purple-500 cursor-pointer"
           >
             <ShieldCheck className="w-4 h-4 text-purple-300 shrink-0" />
             <span className="truncate">{t('adminDashboard.addAdmin')}</span>
@@ -305,18 +354,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               />
             </div>
 
+            {/* Quick Toggle: All Groups vs My Groups */}
+            {myTeachingGroupsCount > 0 && (
+              <div className="flex items-center rounded-md bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTeacherFilter('all')}
+                  className={`px-3 py-1.5 rounded text-xs font-bold transition-all cursor-pointer ${
+                    selectedTeacherFilter === 'all'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {language === 'uz' ? 'Barcha guruhlar' : 'All Cohorts'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTeacherFilter(currentUser?.id || '')}
+                  className={`px-3 py-1.5 rounded text-xs font-bold transition-all cursor-pointer ${
+                    selectedTeacherFilter === currentUser?.id
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {language === 'uz' ? 'Mening guruhlarim' : 'My Groups'} ({myTeachingGroupsCount})
+                </button>
+              </div>
+            )}
+
             {/* Filter by Teacher */}
             <select
               value={selectedTeacherFilter}
               onChange={(e) => setSelectedTeacherFilter(e.target.value)}
               className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-semibold text-slate-800 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 outline-none transition-colors"
             >
-              <option value="all">{t('adminDashboard.allTeachers', { count: teachers.length })}</option>
-              {teachers.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
+              <option value="all">{t('adminDashboard.allTeachers', { count: availableTeachers.length })}</option>
+              {availableTeachers.map((t) => {
+                const isSuper = t.role === 'super_admin' || (t.role as any) === 'superadmin' || t.id === 'admin-1';
+                return (
+                  <option key={t.id} value={t.id}>
+                    {t.name} {isSuper ? '(Super Admin & Instructor)' : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -429,11 +509,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         onChange={(e) => handleTeacherReassignChange(group.id, e.target.value)}
                         className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                       >
-                        {teachers.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name} ({t.title || 'Teacher'})
-                          </option>
-                        ))}
+                        {availableTeachers.map((t) => {
+                          const isSuper = t.role === 'super_admin' || (t.role as any) === 'superadmin' || t.id === 'admin-1';
+                          return (
+                            <option key={t.id} value={t.id}>
+                              {t.name} {isSuper ? '(Super Admin & Instructor)' : `(${t.title || 'Teacher'})`}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                   </div>

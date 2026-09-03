@@ -16,7 +16,9 @@ export const TeacherAttendanceLog: React.FC<TeacherAttendanceLogProps> = ({ onSe
   const [selectedGroupId, setSelectedGroupId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const myGroups = groups.filter((g) => g.teacherId === currentUser?.id);
+  const myGroups = groups.filter(
+    (g) => (g.teacherId === currentUser?.id || (currentUser?.uid && g.teacherId === currentUser.uid)) && !g.archived
+  );
   const myGroupIds = new Set(myGroups.map((g) => g.id));
 
   const filteredRecords = attendanceRecords

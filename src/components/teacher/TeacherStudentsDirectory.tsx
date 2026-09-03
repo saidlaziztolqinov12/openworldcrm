@@ -40,7 +40,9 @@ export const TeacherStudentsDirectory: React.FC<TeacherStudentsDirectoryProps> =
 
   // Scoped strictly to the active teacher's groups
   const myGroups = useMemo(() => {
-    return groups.filter((g) => g.teacherId === currentUser?.id);
+    return groups.filter(
+      (g) => (g.teacherId === currentUser?.id || (currentUser?.uid && g.teacherId === currentUser.uid)) && !g.archived
+    );
   }, [groups, currentUser]);
 
   const myGroupIds = useMemo(() => {

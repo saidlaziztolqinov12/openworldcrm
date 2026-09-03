@@ -342,6 +342,9 @@ const MainApp: React.FC = () => {
                   {activeTab === 'archive' && (
                     <ArchiveView />
                   )}
+                  {activeTab === 'teacher-attendance-history' && (
+                    <TeacherAttendanceLog onSelectGroup={handleSelectGroup} />
+                  )}
                   {activeTab === 'inbox' && (
                     <InboxView onSelectGroup={handleSelectGroup} />
                   )}

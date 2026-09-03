@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Group, User } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -20,8 +20,8 @@ export const GroupModal: React.FC<GroupModalProps> = ({
   group,
   onSuccess
 }) => {
-  const { currentUser, isAdmin } = useAuth();
-  const { teachers, addGroup, updateGroup } = useData();
+  const { currentUser, isAdmin, isSuperAdmin } = useAuth();
+  const { users, teachers, addGroup, updateGroup } = useData();
   const { t } = useLanguage();
 
   const activeGroup = groupToEdit || group;
@@ -31,6 +31,47 @@ export const GroupModal: React.FC<GroupModalProps> = ({
   const [teacherId, setTeacherId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Fetch or list available teachers: include role 'teacher' and role 'super_admin' (or current superadmin profile)
+  const availableTeachers = useMemo(() => {
+    const list: User[] = [];
+    const seenIds = new Set<string>();
+
+    // 1. Users whose role is 'teacher'
+    users.forEach((u) => {
+      if (u.role === 'teacher' && !seenIds.has(u.id)) {
+        seenIds.add(u.id);
+        list.push(u);
+      }
+    });
+
+    // 2. Users whose role is 'super_admin' / 'superadmin'
+    users.forEach((u) => {
+      const isSuper = u.role === 'super_admin' || (u.role as any) === 'superadmin' || u.id === 'admin-1';
+      if (isSuper && !seenIds.has(u.id)) {
+        seenIds.add(u.id);
+        list.push(u);
+      }
+    });
+
+    // 3. Current user if superadmin
+    if (currentUser && (currentUser.role === 'super_admin' || (currentUser.role as any) === 'superadmin' || isSuperAdmin || currentUser.id === 'admin-1')) {
+      if (!seenIds.has(currentUser.id)) {
+        seenIds.add(currentUser.id);
+        list.push(currentUser);
+      }
+    }
+
+    // 4. Fallback items from teachers list
+    teachers.forEach((t) => {
+      if (!seenIds.has(t.id)) {
+        seenIds.add(t.id);
+        list.push(t);
+      }
+    });
+
+    return list;
+  }, [users, teachers, currentUser, isSuperAdmin]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -43,13 +84,14 @@ export const GroupModal: React.FC<GroupModalProps> = ({
       setName('');
       setSchedule('Mon/Wed/Fri 10:00 AM - 11:30 AM');
       if (isAdmin) {
-        setTeacherId(teachers[0]?.id || '');
+        // Default to current user if superadmin or first available instructor
+        setTeacherId(availableTeachers[0]?.id || teachers[0]?.id || '');
       } else {
-        setTeacherId(currentUser?.id || teachers[0]?.id || '');
+        setTeacherId(currentUser?.id || availableTeachers[0]?.id || '');
       }
     }
     setError('');
-  }, [isOpen, activeGroup, isAdmin, currentUser?.id]);
+  }, [isOpen, activeGroup, isAdmin, currentUser?.id, availableTeachers, teachers]);
 
   if (!isOpen) return null;
 
@@ -68,7 +110,7 @@ export const GroupModal: React.FC<GroupModalProps> = ({
       return;
     }
 
-    const assignedTeacher = teachers.find((t) => t.id === teacherId);
+    const assignedTeacher = availableTeachers.find((t) => t.id === teacherId) || users.find((u) => u.id === teacherId) || teachers.find((t) => t.id === teacherId);
     const teacherName = assignedTeacher ? assignedTeacher.name : (currentUser?.name || 'Assigned Teacher');
 
     setLoading(true);
@@ -184,11 +226,14 @@ export const GroupModal: React.FC<GroupModalProps> = ({
                   onChange={(e) => setTeacherId(e.target.value)}
                   className="w-full pl-9 pr-8 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-800 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none transition-colors"
                 >
-                  {teachers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.title || 'Teacher'})
-                    </option>
-                  ))}
+                  {availableTeachers.map((t) => {
+                    const isSuper = t.role === 'super_admin' || (t.role as any) === 'superadmin' || t.id === 'admin-1';
+                    return (
+                      <option key={t.id} value={t.id}>
+                        {t.name} {isSuper ? '(Super Admin & Instructor)' : `(${t.title || 'Teacher'})`}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             ) : (

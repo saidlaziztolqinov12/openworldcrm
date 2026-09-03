@@ -44,6 +44,7 @@ import {
   History,
   Check,
   Award,
+  BookOpen,
   MessageCircle,
   Send,
   CalendarDays,
@@ -61,11 +62,12 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
     students,
     attendanceRecords,
     groupActivityLogs,
+    users,
     teachers,
     saveAttendanceRecord,
     removeStudentFromGroup
   } = useData();
-  const { isAdmin, currentUser } = useAuth();
+  const { isAdmin, isSuperAdmin, currentUser } = useAuth();
   const { t, language } = useLanguage();
 
   const formatSchedule = (schedule: string): string => {
@@ -95,7 +97,22 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
   };
 
   const group = groups.find((g) => g.id === groupId);
-  const assignedTeacher = teachers.find((t) => t.id === group?.teacherId);
+  const assignedTeacher = users.find((u) => u.id === group?.teacherId) || teachers.find((t) => t.id === group?.teacherId);
+
+  // Permission check: Grant full access if superadmin || admin || group.teacherId === user.uid / user.id
+  const canManageGroup = Boolean(
+    currentUser && (
+      currentUser.role === 'super_admin' ||
+      (currentUser.role as any) === 'superadmin' ||
+      currentUser.role === 'admin' ||
+      isAdmin ||
+      isSuperAdmin ||
+      (group && (
+        group.teacherId === currentUser.id ||
+        (currentUser.uid && group.teacherId === currentUser.uid)
+      ))
+    )
+  );
 
   // Active view tab: 'register' | 'monthly' | 'roster' | 'history' | 'archive'
   const [activeTab, setActiveTab] = useState<'register' | 'monthly' | 'roster' | 'history' | 'archive'>('register');
@@ -223,6 +240,10 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
   const totalRoster = groupStudents.length;
 
   const handleStatusChange = (studentId: string, status: AttendanceStatus) => {
+    if (!canManageGroup) {
+      setAttendanceError("You do not have permission to modify attendance for this group.");
+      return;
+    }
     setStatusMap((prev) => ({
       ...prev,
       [studentId]: status
@@ -237,6 +258,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
   };
 
   const handleMarkChange = (studentId: string, markValue: string) => {
+    if (!canManageGroup) return;
     setMarksMap((prev) => ({
       ...prev,
       [studentId]: markValue === '' ? '' : Number(markValue)
@@ -244,6 +266,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
   };
 
   const handleCommentChange = (studentId: string, commentValue: string) => {
+    if (!canManageGroup) return;
     setCommentsMap((prev) => ({
       ...prev,
       [studentId]: commentValue
@@ -252,6 +275,10 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
 
   const handleSaveAttendance = async () => {
     if (!currentUser) return;
+    if (!canManageGroup) {
+      setAttendanceError("You do not have permission to record attendance for this group.");
+      return;
+    }
     if (selectedDate < twoDaysAgoFormatted || selectedDate > todayFormatted) {
       setAttendanceError("Attendance can only be recorded for today and the last 2 days.");
       return;
@@ -347,7 +374,7 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
             <span>{t('groupDetail.notifyParents')}</span>
           </button>
 
-          {isAdmin && (
+          {(isAdmin || canManageGroup) && (
             <button
               onClick={() => setIsEditGroupOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-xs transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer"
@@ -372,9 +399,14 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                 <Clock className="w-4 h-4 text-slate-400" />
                 <span className="font-semibold text-slate-800 dark:text-slate-200">{formatSchedule(group.schedule)}</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <TeacherAvatar teacher={assignedTeacher || { name: group.teacherName }} className="w-5 h-5" />
                 <span>{t('groupDetail.instructor')}: <strong className="text-slate-800 dark:text-slate-200">{group.teacherName}</strong></span>
+                {(assignedTeacher?.role === 'super_admin' || (assignedTeacher?.role as any) === 'superadmin' || assignedTeacher?.id === 'admin-1') && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                    Super Admin & Instructor
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1.5">
                 <Users className="w-4 h-4 text-slate-400" />
@@ -685,6 +717,42 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
                 })}
               </div>
             )}
+          </div>
+
+          {/* Topic Covered & Lesson Notes Section */}
+          <div className="bg-white dark:bg-slate-900 rounded-lg border-none p-4 sm:p-5 shadow-xs transition-colors space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+              <BookOpen className="w-4 h-4 text-indigo-500" />
+              <span>{language === 'uz' ? 'Mavzu va Dars Eslatmalari' : 'Lesson Topic & Session Notes'}</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
+                  {t('groupDetail.topic') || 'Topic Covered'}
+                </label>
+                <input
+                  type="text"
+                  disabled={!canManageGroup}
+                  value={topicCovered}
+                  onChange={(e) => setTopicCovered(e.target.value)}
+                  placeholder={language === 'uz' ? "Masalan: 4-Mavzu. Past Perfect Tense" : "e.g. Unit 4: Past Perfect Tense & Vocabulary Quiz"}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-medium text-slate-800 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-60"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
+                  {language === 'uz' ? 'Dars eslatmalari' : 'Lesson / Session Notes'}
+                </label>
+                <input
+                  type="text"
+                  disabled={!canManageGroup}
+                  value={sessionNotes}
+                  onChange={(e) => setSessionNotes(e.target.value)}
+                  placeholder={language === 'uz' ? "Masalan: Uyga vazifa: 42-bet 1-5 mashqlar" : "e.g. Homework assigned: Exercises 1-5 on page 42"}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-medium text-slate-800 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-colors disabled:opacity-60"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Action Footer: Save Attendance Register & Native SMS */}

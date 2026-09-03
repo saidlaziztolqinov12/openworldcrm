@@ -89,7 +89,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   // Filter groups strictly assigned to this teacher (or created by this teacher)
   const myGroups = groups.filter(
-    (g) => g.teacherId === currentUser?.id && !g.archived
+    (g) => (g.teacherId === currentUser?.id || (currentUser?.uid && g.teacherId === currentUser.uid)) && !g.archived
   );
 
   // Compute teacher summary metrics
