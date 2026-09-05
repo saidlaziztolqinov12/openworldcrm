@@ -210,10 +210,10 @@ export const GroupModal: React.FC<GroupModalProps> = ({
                   onChange={(e) => setTeacherId(e.target.value)}
                   className="w-full pl-9 pr-8 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-800 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none transition-colors"
                 >
-                  {availableTeachers.map((t) => {
+                  {availableTeachers.map((t, idx) => {
                     const isSuper = t.role === 'super_admin' || (t.role as any) === 'superadmin' || t.id === 'admin-1';
                     return (
-                      <option key={t.id} value={t.id}>
+                      <option key={t.id || `modal-teacher-${idx}`} value={t.id}>
                         {t.name} {isSuper ? '(Super Admin & Instructor)' : `(${t.title || 'Teacher'})`}
                       </option>
                     );

@@ -378,10 +378,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-semibold text-slate-800 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 outline-none transition-colors"
             >
               <option value="all">{t('adminDashboard.allTeachers', { count: availableTeachers.length })}</option>
-              {availableTeachers.map((t) => {
+              {availableTeachers.map((t, idx) => {
                 const isSuper = t.role === 'super_admin' || (t.role as any) === 'superadmin' || t.id === 'admin-1';
                 return (
-                  <option key={t.id} value={t.id}>
+                  <option key={t.id || `teacher-${idx}`} value={t.id}>
                     {t.name} {isSuper ? '(Super Admin & Instructor)' : ''}
                   </option>
                 );
@@ -424,12 +424,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredGroups.map((group) => {
+            {filteredGroups.map((group, idx) => {
               const groupStudentsList = students.filter((s) => s.groupId === group.id && s.status !== 'inactive');
 
               return (
                 <div
-                  key={group.id}
+                  key={group.id || `group-${idx}`}
                   className={`bg-white dark:bg-slate-900 rounded-md border-none p-5 shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between ${
                     group.archived ? 'opacity-60 bg-slate-50 dark:bg-slate-900/60' : ''
                   }`}
@@ -511,10 +511,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         onChange={(e) => handleTeacherReassignChange(group.id, e.target.value)}
                         className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
                       >
-                        {availableTeachers.map((t) => {
+                        {availableTeachers.map((t, idx) => {
                           const isSuper = t.role === 'super_admin' || (t.role as any) === 'superadmin' || t.id === 'admin-1';
                           return (
-                            <option key={t.id} value={t.id}>
+                            <option key={t.id || `teacher-reassign-${idx}`} value={t.id}>
                               {t.name} {isSuper ? '(Super Admin & Instructor)' : `(${t.title || 'Teacher'})`}
                             </option>
                           );
