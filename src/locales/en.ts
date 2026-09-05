@@ -85,6 +85,7 @@ export const en = {
     takeAttendance: "Take Attendance",
     lessonDate: "Lesson Date",
     markAllPresent: "Mark All Present",
+    allMarkedToast: "All students marked as present",
     present: "Present",
     absent: "Absent",
     late: "Late",

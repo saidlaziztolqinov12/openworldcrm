@@ -43,6 +43,7 @@ import {
   CalendarCheck2,
   History,
   Check,
+  CheckCheck,
   Award,
   BookOpen,
   MessageCircle,
@@ -255,6 +256,18 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
         setPulsingPresentStudentId((curr) => (curr === studentId ? null : curr));
       }, 700);
     }
+  };
+
+  const handleMarkAllPresent = () => {
+    if (!canManageGroup) {
+      setAttendanceError("You do not have permission to modify attendance for this group.");
+      return;
+    }
+    const updatedStatusMap = { ...statusMap };
+    groupStudents.forEach((student) => {
+      updatedStatusMap[student.id] = 'present';
+    });
+    setStatusMap(updatedStatusMap);
   };
 
   const handleMarkChange = (studentId: string, markValue: string) => {
@@ -570,11 +583,25 @@ export const GroupDetailView: React.FC<GroupDetailViewProps> = ({ groupId, onBac
 
           {/* Student attendance list table / cards */}
           <div className="bg-white dark:bg-slate-900 rounded-lg border-none shadow-xs overflow-hidden transition-colors">
-            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/30">
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-950/30">
               <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                 <span>{t('groupDetail.attendanceTab.listTitle', { count: totalRoster })}</span>
               </h2>
+
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                  {presentCount} / {totalRoster} {language === 'uz' ? 'Kelgan' : 'Present'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleMarkAllPresent}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-colors shadow-xs active:scale-95 cursor-pointer"
+                >
+                  <CheckCheck className="w-3.5 h-3.5"/>
+                  <span>{t('attendance.markAllPresent') || (language === 'uz' ? "Barchasi kelgan" : "Mark All Present")}</span>
+                </button>
+              </div>
             </div>
 
             {groupStudents.length === 0 ? (

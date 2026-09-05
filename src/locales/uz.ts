@@ -85,6 +85,7 @@ export const uz = {
     takeAttendance: "Davomat olish",
     lessonDate: "Dars sanasi",
     markAllPresent: "Barchasini keldi qilish",
+    allMarkedToast: "Barcha o'quvchilar 'Keldi' deb belgilandi",
     present: "Keldi",
     absent: "Kelmadi",
     late: "Kechikdi",
